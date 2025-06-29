@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カリタス試験対策ツール</title>
+    
+    <!-- PWA用メタタグ -->
+    <meta name="description" content="カリタス中学校の体系数学・Progress 21に準拠したAI学習ツール">
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="カリタス学習ツール">
+    
+    <!-- アイコン -->
+    <link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    
+    <!-- マニフェスト -->
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIuOCq+ODquOCv+ODueS4reWtpuagoSBBSeivlem6k+WvvuetluODhOODvOODqyIsCiAgInNob3J0X25hbWUiOiAi44Kr44Oq44K/44K544Gn44GN44G+44CCIiwKICAiZGVzY3JpcHRpb24iOiAi44Kr44Oq44K/44K55Lit5a2m5qCh44Gu5L2T57O65pWw5a2m44O7UHJvZ3Jlc3MgMjHjgavmupbmjqbjgZfjgZ9BSeWtpuaTjeODhOODvOODqyIsCiAgInN0YXJ0X3VybCI6ICIuLyIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsCiAgInRoZW1lX2NvbG9yIjogIiMzQjgyRjYiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJkYXRhOmltYWdlL3N2Zyt4bWwsPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxMDAgMTAwJz48dGV4dCB5PScuOWVtJyBmb250LXNpemU9JzkwJz7wn5OaPC90ZXh0Pjwvc3ZnPiIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0sCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sLDxzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgMTAwIDEwMCc+PHRleHQgeT0nLjllbScgZm9udC1zaXplPSc5MCc+8J+TmjwvdGV4dD48L3N2Zz4iLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3N2Zyt4bWwiCiAgICB9CiAgXQp9">
+    
+    <!-- 外部ライブラリ -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            overscroll-behavior: none; /* PWA用：オーバースクロール無効 */
+        }
+        
+        /* PWA用：タップハイライト無効 */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* PWA用：選択無効（必要な箇所以外） */
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        /* インストールボタンのアニメーション */
+        .install-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* オフライン表示 */
+        .offline-banner {
+            background: linear-gradient(45deg, #f59e0b, #d97706);
+            color: white;
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        
+        /* アプリライクなボトムナビゲーション（将来拡張用） */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: none; /* 必要に応じて表示 */
+        }
+    </style>
+</head>
+<body>
+    <!-- オフライン表示バナー -->
+    <div id="offline-banner" class="offline-banner" style="display: none;">
+        📱 オフラインモード - データは端末に保存されています
+    </div>
+    
+    <!-- メインアプリ -->
+    <div id="root"></div>
+    
+    <!-- インストールボタン（PWA未インストール時のみ表示） -->
+    <div id="install-prompt" style="display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+        <button id="install-button" class="bg-blue-600 text-white px-4 py-3 rounded-full shadow-lg hover:bg-blue-700 transition-all install-pulse">
+            📱 アプリをインストール
+        </button>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const StudyTool = () => {
+            const [selectedSubject, setSelectedSubject] = useState(null);
+            const [currentSection, setCurrentSection] = useState('menu');
+            const [isOnline, setIsOnline] = useState(navigator.onLine);
+            const [isInstalled, setIsInstalled] = useState(false);
+            
+            // 学習進捗データ（localStorage完全対応）
+            const [mathProgress, setMathProgress] = useState(() => {
+                const saved = localStorage.getItem('caritas_mathProgress');
+                return saved ? JSON.parse(saved) : { solved: 0, totalTime: 0, lastStudied: null };
+            });
+            
+            const [englishProgress, setEnglishProgress] = useState(() => {
+                const saved = localStorage.getItem('caritas_englishProgress');
+                return saved ? JSON.parse(saved) : { words: 0, totalTime: 0, lastStudied: null };
+            });
+
+            // 学習履歴
+            const [mathHistory, setMathHistory] = useState(() => {
+                const saved = localStorage.getItem('caritas_mathHistory');
+                return saved ? JSON.parse(saved) : [];
+            });
+            
+            const [englishHistory, setEnglishHistory] = useState(() => {
+                const saved = localStorage.getItem('caritas_englishHistory');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            // 設定保存
+            const [savedSettings, setSavedSettings] = useState(() => {
+                const saved = localStorage.getItem('caritas_savedSettings');
+                return saved ? JSON.parse(saved) : {
+                    math: { grade: '中2', unit: '全分野', level: '基礎' }
+                };
+            });
+
+            // 学習時間追跡
+            const [sessionStartTime, setSessionStartTime] = useState(null);
+            const [currentSessionTime, setCurrentSessionTime] = useState(0);
+
+            // Claude API模擬関数（オフライン対応）
+            const mockClaudeComplete = async (prompt) => {
+                // オフライン時は即座にサンプル問題を返す
+                if (!isOnline) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } else {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+                if (prompt.includes('数学問題')) {
+                    const sampleProblems = [
+                        {
+                            grade: "中2", level: "基礎", unit: "因数分解",
+                            problem: "x² - 5x + 6 を因数分解しなさい。",
+                            answer: "(x - 2)(x - 3)"
+                        },
+                        {
+                            grade: "中2", level: "標準", unit: "連立方程式",
+                            problem: "連立方程式 x + y = 5, 2x - y = 1 を解きなさい。",
+                            answer: "x = 2, y = 3"
+                        },
+                        {
+                            grade: "中3", level: "応用", unit: "二次関数",
+                            problem: "y = x² - 4x + 3 の最小値とそのときのxの値を求めなさい。",
+                            answer: "x = 2 のとき最小値 -1"
+                        }
+                    ];
+                    
+                    const randomProblem = sampleProblems[Math.floor(Math.random() * sampleProblems.length)];
+                    
+                    return JSON.stringify({
+                        ...randomProblem,
+                        steps: [
+                            {
+                                step: "問題理解",
+                                content: "この問題の要求を確認します。",
+                                explanation: "何を求められているかを明確にします。"
+                            },
+                            {
+                                step: "解法選択",
+                                content: "最適な解法を選択します。",
+                                explanation: "効率的なアプローチを考えます。"
+                            },
+                            {
+                                step: "計算過程",
+                                content: "段階的に計算を進めます。",
+                                explanation: "一歩ずつ丁寧に解いていきます。"
+                            },
+                            {
+                                step: "思考の流れ",
+                                content: "論理的な流れを確認します。",
+                                explanation: "なぜそう考えるのかを理解します。"
+                            },
+                            {
+                                step: "検算・確認",
+                                content: "答えが正しいか確認します。",
+                                explanation: "計算ミスがないかチェックします。"
+                            },
+                            {
+                                step: "類似問題への応用",
+                                content: "この解法の応用を考えます。",
+                                explanation: "同じ考え方が使える場面を理解します。"
+                            }
+                        ]
+                    });
+                } else {
+                    const sampleWords = [
+                        {
+                            word: "environment", meaning: "環境", level: "core",
+                            pronunciation: "/ɪnˈvaɪrənmənt/",
+                            examples: [
+                                { english: "We must protect the environment.", japanese: "私たちは環境を保護しなければなりません。" },
+                                { english: "The school environment is very friendly.", japanese: "学校の環境はとてもフレンドリーです。" },
+                                { english: "Climate change affects the global environment.", japanese: "気候変動は地球環境に影響を与えます。" }
+                            ],
+                            usage_tip: "「環境」という意味でよく使われる重要な名詞です。"
+                        },
+                        {
+                            word: "communicate", meaning: "伝える、交流する", level: "core",
+                            pronunciation: "/kəˈmjuːnɪkeɪt/",
+                            examples: [
+                                { english: "We communicate through email.", japanese: "私たちはメールでやり取りします。" },
+                                { english: "It's important to communicate clearly.", japanese: "明確に伝えることが重要です。" },
+                                { english: "Animals communicate in different ways.", japanese: "動物は様々な方法でコミュニケーションを取ります。" }
+                            ],
+                            usage_tip: "動詞として「伝える」、名詞形はcommunicationです。"
+                        },
+                        {
+                            word: "technology", meaning: "技術、テクノロジー", level: "expansion",
+                            pronunciation: "/tekˈnɒlədʒi/",
+                            examples: [
+                                { english: "Technology changes our daily life.", japanese: "技術は私たちの日常生活を変えます。" },
+                                { english: "New technology helps solve problems.", japanese: "新しい技術は問題解決に役立ちます。" },
+                                { english: "We study computer technology at school.", japanese: "学校でコンピュータ技術を学んでいます。" }
+                            ],
+                            usage_tip: "可算名詞として使われることもあります。"
+                        }
+                    ];
+                    
+                    const randomWord = sampleWords[Math.floor(Math.random() * sampleWords.length)];
+                    return JSON.stringify(randomWord);
+                }
+            };
+
+            // オンライン状態の監視
+            useEffect(() => {
+                const handleOnline = () => {
+                    setIsOnline(true);
+                    document.getElementById('offline-banner').style.display = 'none';
+                };
+                
+                const handleOffline = () => {
+                    setIsOnline(false);
+                    document.getElementById('offline-banner').style.display = 'block';
+                };
+
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+
+                // 初期状態の設定
+                if (!navigator.onLine) {
+                    document.getElementById('offline-banner').style.display = 'block';
+                }
+
+                return () => {
+                    window.removeEventListener('online', handleOnline);
+                    window.removeEventListener('offline', handleOffline);
+                };
+            }, []);
+
+            // PWAインストール状態の確認
+            useEffect(() => {
+                // 既にインストール済みかチェック
+                if (window.matchMedia('(display-mode: standalone)').matches) {
+                    setIsInstalled(true);
+                } else {
+                    document.getElementById('install-prompt').style.display = 'block';
+                }
+            }, []);
+
+            // データ保存関数（PWA対応）
+            const saveData = () => {
+                try {
+                    localStorage.setItem('caritas_mathProgress', JSON.stringify(mathProgress));
+                    localStorage.setItem('caritas_englishProgress', JSON.stringify(englishProgress));
+                    localStorage.setItem('caritas_mathHistory', JSON.stringify(mathHistory));
+                    localStorage.setItem('caritas_englishHistory', JSON.stringify(englishHistory));
+                    localStorage.setItem('caritas_savedSettings', JSON.stringify(savedSettings));
+                } catch (error) {
+                    console.warn('ストレージ保存エラー:', error);
+                }
+            };
+
+            // 学習時間更新
+            useEffect(() => {
+                if (sessionStartTime) {
+                    const interval = setInterval(() => {
+                        setCurrentSessionTime(Math.floor((Date.now() - sessionStartTime) / 60000));
+                    }, 60000);
+                    return () => clearInterval(interval);
+                }
+            }, [sessionStartTime]);
+
+            // データ自動保存
+            useEffect(() => {
+                saveData();
+            }, [mathProgress, englishProgress, mathHistory, englishHistory, savedSettings]);
+
+            // セッション開始
+            const startSession = (subject) => {
+                setSessionStartTime(Date.now());
+                setSelectedSubject(subject);
+                setCurrentSection('study');
+            };
+
+            // セッション終了時の進捗保存
+            const endSession = () => {
+                if (sessionStartTime && currentSessionTime > 0) {
+                    if (selectedSubject === 'math') {
+                        setMathProgress(prev => ({
+                            ...prev,
+                            totalTime: prev.totalTime + currentSessionTime,
+                            lastStudied: new Date().toISOString()
+                        }));
+                    } else if (selectedSubject === 'english') {
+                        setEnglishProgress(prev => ({
+                            ...prev,
+                            totalTime: prev.totalTime + currentSessionTime,
+                            lastStudied: new Date().toISOString()
+                        }));
+                    }
+                }
+                setSessionStartTime(null);
+                setCurrentSessionTime(0);
+            };
+
+            // 問題生成（オフライン対応）
+            const generateProblem = async () => {
+                try {
+                    const response = await mockClaudeComplete('数学問題を生成');
+                    const problem = JSON.parse(response);
+                    
+                    setMathProgress(prev => ({
+                        ...prev,
+                        solved: prev.solved + 1,
+                        lastStudied: new Date().toISOString()
+                    }));
+                    
+                    const historyItem = {
+                        id: Date.now(),
+                        timestamp: new Date().toISOString(),
+                        ...problem,
+                        completed: true
+                    };
+                    setMathHistory(prev => [historyItem, ...prev.slice(0, 49)]);
+                    
+                    return problem;
+                } catch (error) {
+                    console.error('問題生成エラー:', error);
+                    return null;
+                }
+            };
+
+            // 単語生成（オフライン対応）
+            const generateWord = async () => {
+                try {
+                    const response = await mockClaudeComplete('英単語を生成');
+                    const word = JSON.parse(response);
+                    
+                    setEnglishProgress(prev => ({
+                        ...prev,
+                        words: prev.words + 1,
+                        lastStudied: new Date().toISOString()
+                    }));
+                    
+                    const historyItem = {
+                        id: Date.now(),
+                        timestamp: new Date().toISOString(),
+                        ...word,
+                        studied: true
+                    };
+                    setEnglishHistory(prev => [historyItem, ...prev.slice(0, 99)]);
+                    
+                    return word;
+                } catch (error) {
+                    console.error('単語生成エラー:', error);
+                    return null;
+                }
+            };
+
+            if (currentSection === 'menu') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4 no-select">
+                        <div className="max-w-4xl mx-auto">
+                            <div className="text-center mb-8">
+                                <div className="text-6xl mb-4">📚</div>
+                                <h1 className="text-3xl font-bold text-gray-800 mb-2">
+                                    カリタス中学校
+                                </h1>
+                                <h2 className="text-xl font-semibold text-gray-700 mb-2">
+                                    AI試験対策ツール
+                                </h2>
+                                <p className="text-gray-600">中2〜中3 対応（体系数学・Progress 21準拠）</p>
+                                <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
+                                    <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
+                                        📱 PWAアプリ
+                                    </span>
+                                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                                        💾 自動保存
+                                    </span>
+                                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                                        📶 オフライン対応
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-6 mb-8">
+                                <div 
+                                    onClick={() => startSession('math')}
+                                    className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-blue-500 active:scale-95"
+                                >
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="bg-blue-100 p-3 rounded-lg text-3xl">🧮</div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-800">数学</h2>
+                                            <p className="text-gray-600">体系数学準拠</p>
+                                        </div>
+                                    </div>
+                                    <ul className="text-sm text-gray-700 space-y-1">
+                                        <li>• 🤖 AI問題生成（オフライン対応）</li>
+                                        <li>• 📝 6段階ステップ解説</li>
+                                        <li>• ⚖️ 4段階難易度選択</li>
+                                        <li>• 💾 学習進捗自動保存</li>
+                                    </ul>
+                                    <div className="mt-4 space-y-1 text-sm">
+                                        <div className="text-blue-600 font-semibold">
+                                            解答済み: {mathProgress.solved} 問題
+                                        </div>
+                                        <div className="text-gray-500">
+                                            学習時間: {mathProgress.totalTime}分
+                                        </div>
+                                        {mathProgress.lastStudied && (
+                                            <div className="text-gray-400 text-xs">
+                                                最終学習: {new Date(mathProgress.lastStudied).toLocaleDateString()}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div 
+                                    onClick={() => startSession('english')}
+                                    className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-green-500 active:scale-95"
+                                >
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="bg-green-100 p-3 rounded-lg text-3xl">📖</div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-800">英語</h2>
+                                            <p className="text-gray-600">Progress 21準拠</p>
+                                        </div>
+                                    </div>
+                                    <ul className="text-sm text-gray-700 space-y-1">
+                                        <li>• 🤖 AI単語選出（オフライン対応）</li>
+                                        <li>• 👁️ 日本語訳表示切替</li>
+                                        <li>• 🔄 忘却曲線対応</li>
+                                        <li>• 💾 学習進捗自動保存</li>
+                                    </ul>
+                                    <div className="mt-4 space-y-1 text-sm">
+                                        <div className="text-green-600 font-semibold">
+                                            学習済み: {englishProgress.words} 語
+                                        </div>
+                                        <div className="text-gray-500">
+                                            学習時間: {englishProgress.totalTime}分
+                                        </div>
+                                        {englishProgress.lastStudied && (
+                                            <div className="text-gray-400 text-xs">
+                                                最終学習: {new Date(englishProgress.lastStudied).toLocaleDateString()}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-6 rounded-lg shadow-lg">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
+                                    📱 PWAアプリの特徴
+                                </h3>
+                                <div className="grid md:grid-cols-3 gap-4 text-sm">
+                                    <div className="bg-blue-50 p-4 rounded-lg text-center">
+                                        <div className="text-2xl mb-2">📱</div>
+                                        <h4 className="font-bold text-blue-900 mb-1">アプリ化</h4>
+                                        <p className="text-blue-700">スマホにインストール可能</p>
+                                    </div>
+                                    <div className="bg-green-50 p-4 rounded-lg text-center">
+                                        <div className="text-2xl mb-2">📶</div>
+                                        <h4 className="font-bold text-green-900 mb-1">オフライン</h4>
+                                        <p className="text-green-700">ネット無しでも動作</p>
+                                    </div>
+                                    <div className="bg-purple-50 p-4 rounded-lg text-center">
+                                        <div className="text-2xl mb-2">💾</div>
+                                        <h4 className="font-bold text-purple-900 mb-1">データ保持</h4>
+                                        <p className="text-purple-700">進捗完全保存</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="mt-6 text-center">
+                                    <div className="bg-gray-50 p-4 rounded-lg">
+                                        <h4 className="font-bold text-gray-800 mb-2">📊 学習統計</h4>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-gray-600">合計学習時間</span>
+                                                <div className="text-lg font-bold text-blue-600">
+                                                    {mathProgress.totalTime + englishProgress.totalTime}分
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">保存済み履歴</span>
+                                                <div className="text-lg font-bold text-green-600">
+                                                    {mathHistory.length + englishHistory.length}件
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 学習画面（簡略版 - PWA対応）
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="flex items-center gap-4 mb-6">
+                            <button
+                                onClick={() => {
+                                    endSession();
+                                    setCurrentSection('menu');
+                                }}
+                                className="bg-white p-3 rounded-lg shadow hover:shadow-md transition-all text-xl active:scale-95"
+                            >
+                                ↩️
+                            </button>
+                            <h1 className="text-2xl font-bold text-gray-800">
+                                {selectedSubject === 'math' ? '🧮 数学学習' : '📖 英語学習'}
+                            </h1>
+                            {currentSessionTime > 0 && (
+                                <div className="text-sm text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                                    ⏱️ {currentSessionTime}分
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                            <div className="text-6xl mb-4">
+                                {selectedSubject === 'math' ? '🧮' : '📖'}
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">
+                                {selectedSubject === 'math' ? '数学' : '英語'}学習モード
+                            </h3>
+                            <p className="text-gray-600 mb-6">
+                                {isOnline ? 'オンライン' : 'オフライン'}で学習中
+                            </p>
+                            
+                            <div className="space-y-4">
+                                <button
+                                    onClick={async () => {
+                                        if (selectedSubject === 'math') {
+                                            const problem = await generateProblem();
+                                            if (problem) {
+                                                alert(`✅ 数学問題を生成しました！\n問題: ${problem.problem}\n解答: ${problem.answer}`);
+                                            }
+                                        } else {
+                                            const word = await generateWord();
+                                            if (word) {
+                                                alert(`✅ 英単語を学習しました！\n単語: ${word.word}\n意味: ${word.meaning}`);
+                                            }
+                                        }
+                                    }}
+                                    className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 transition-colors text-lg font-medium w-full md:w-auto"
+                                >
+                                    {selectedSubject === 'math' ? '🎲 問題を生成' : '📝 単語を学習'}
+                                </button>
+                                
+                                <div className="text-sm text-gray-500">
+                                    {selectedSubject === 'math' ? 
+                                        `今までに ${mathProgress.solved} 問題を解きました` :
+                                        `今までに ${englishProgress.words} 語を学習しました`
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<StudyTool />, document.getElementById('root'));
+    </script>
+
+    <script>
+        // Service Worker登録（PWA機能）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                const swCode = `
+                    const CACHE_NAME = 'caritas-study-v1.0.0';
+                    const urlsToCache = [
+                        '/',
+                        '/index.html',
+                        'https://cdn.tailwindcss.com/3.3.2',
+                        'https://unpkg.com/react@18/umd/react.development.js',
+                        'https://unpkg.com/react-dom@18/umd/react-dom.development.js',
+                        'https://unpkg.com/@babel/standalone/babel.min.js'
+                    ];
+
+                    self.addEventListener('install', function(event) {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME)
+                                .then(function(cache) {
+                                    return cache.addAll(urlsToCache);
+                                })
+                        );
+                    });
+
+                    self.addEventListener('fetch', function(event) {
+                        event.respondWith(
+                            caches.match(event.request)
+                                .then(function(response) {
+                                    if (response) {
+                                        return response;
+                                    }
+                                    return fetch(event.request);
+                                })
+                        );
+                    });
+                `;
+                
+                const blob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(blob);
+                
+                navigator.serviceWorker.register(swUrl)
+                    .then(function(registration) {
+                        console.log('ServiceWorker登録成功:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('ServiceWorker登録失敗:', error);
+                    });
+            });
+        }
+
+        // PWAインストールプロンプト
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-prompt').style.display = 'block';
+        });
+
+        document.getElementById('install-button').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('install-prompt').style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+
+        // インストール後はプロンプトを非表示
+        window.addEventListener('appinstalled', () => {
+            document.getElementById('install-prompt').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
