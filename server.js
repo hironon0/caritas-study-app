@@ -183,13 +183,14 @@ app.post('/api/generate-math-openai', async (req, res) => {
 
         console.log('📝 数学問題生成リクエスト (OpenAI)');
 
-        const testPrompt = 'Return a JSON object with the following structure: {"grade": "test", "level": "test", "unit": "test", "problem": "test problem", "steps": [{"step": "test step", "content": "test content", "explanation": "test explanation", "detail": "test detail"}], "answer": "test answer", "hint": "test hint", "difficulty_analysis": "test analysis", "learning_point": "test point"}';
-
         const response = await openai.chat.completions.create({
             model: 'gpt-4-turbo',
+            max_tokens: 3000,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
             messages: [{
                 role: 'user',
-                content: testPrompt,
+                content: prompt,
             }],
         });
 
@@ -222,9 +223,16 @@ app.post('/api/generate-math-openai', async (req, res) => {
 
     } catch (error) {
         console.error('数学問題生成エラー (OpenAI):', error);
+        if (error instanceof OpenAI.APIError) {
+            return res.status(error.status || 500).json({
+                success: false,
+                error: 'OpenAI APIとの通信中にエラーが発生しました。',
+                details: error.message,
+            });
+        }
         res.status(500).json({
             success: false,
-            error: 'AI問題生成中にエラーが発生しました',
+            error: 'AI問題生成中にサーバー内部でエラーが発生しました',
             details: error.message,
         });
     }
