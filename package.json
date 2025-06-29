@@ -9,16 +9,24 @@
     "build": "echo 'Build completed'",
     "test": "echo 'Tests passed'"
   },
-  "keywords": ["education", "ai", "caritas", "math", "english", "pwa"],
+  "keywords": [
+    "education",
+    "ai",
+    "caritas",
+    "math",
+    "english",
+    "pwa"
+  ],
   "author": "Caritas Study Tool",
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.2",
-    "express": "^4.18.2",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "helmet": "^7.1.0",
     "dotenv": "^16.3.1",
-    "compression": "^1.7.4"
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "openai": "^5.8.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
