@@ -602,7 +602,8 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                 </div>
                             )}
 
-                            <div className="grid gap-6">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                {/* 数学セクション */}
                                 <div 
                                     onClick={() => {
                                         setSelectedSubject('math');
@@ -625,6 +626,48 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                     </ul>
                                     <div className="mt-4 text-sm text-blue-600">
                                         解答済み: {mathProgress.solved} 問題
+                                    </div>
+                                </div>
+
+                                {/* 英単語セクション */}
+                                <div 
+                                    onClick={() => {
+                                        setSelectedSubject('english_word');
+                                        setCurrentSection('study');
+                                    }}
+                                    className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-green-500"
+                                >
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="bg-green-100 p-3 rounded-lg text-3xl">📚</div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-800">AI英単語学習</h2>
+                                            <p className="text-gray-600">Progress 21準拠 + 語源解説</p>
+                                        </div>
+                                    </div>
+                                    <ul className="text-sm text-gray-700 space-y-1">
+                                        <li>• 🧠 <strong>文脈で覚える</strong>例文自動生成</li>
+                                        <li>• 🗣️ <strong>発音・語源</strong>まで徹底解説</li>
+                                        <li>• 📈 <strong>レベル別</strong>に効率よく学習</li>
+                                        <li>• 🔄 <strong>忘却曲線</strong>に基づいた復習</li>
+                                    </ul>
+                                    <div className="mt-4 text-sm text-green-600">
+                                        学習済み: {englishProgress.words} 単語
+                                    </div>
+                                </div>
+                                
+                                {/* 英語問題セクション (Coming Soon) */}
+                                <div className="bg-gray-100 p-6 rounded-lg shadow-inner cursor-not-allowed border-l-4 border-gray-300 col-span-2">
+                                    <div className="flex items-center gap-4 mb-4 opacity-50">
+                                        <div className="bg-gray-200 p-3 rounded-lg text-3xl">📝</div>
+                                        <div>
+                                            <h2 className="text-xl font-bold text-gray-500">AI英語問題</h2>
+                                            <p className="text-gray-400">長文読解・文法（準備中）</p>
+                                        </div>
+                                    </div>
+                                     <div className="text-center mt-4">
+                                        <span className="bg-gray-300 text-gray-600 px-4 py-2 rounded-full">
+                                            Coming Soon
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -656,28 +699,200 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 );
             }
 
-            return (
-                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
-                    <div className="max-w-4xl mx-auto">
-                        <div className="flex items-center gap-4 mb-6">
-                            <button
-                                onClick={() => setCurrentSection('menu')}
-                                className="bg-white p-3 rounded-lg shadow hover:shadow-md transition-all"
-                            >
-                                ↩️
-                            </button>
-                            <h1 className="text-2xl font-bold text-gray-800">
-                                🤖 AI数学学習
-                            </h1>
-                            <div className="text-sm text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
-                                OpenAI版
+            // 英単語学習セクション
+            const EnglishWordSection = () => {
+                const [selectedGrade, setSelectedGrade] = useState('中2');
+                const [selectedLevel, setSelectedLevel] = useState('標準');
+                
+                const generateEnglishWord = async (grade, level) => {
+                    setIsLoading(true);
+                    setCurrentWord(null); // 表示をクリア
+                    const prompt = `
+カリタス中学校のProgress 21に準拠した英単語を1つ提案してください。
+
+設定:
+- 学年: ${grade}
+- レベル: ${level}
+
+以下のJSON形式で、必ず全てのフィールドを含めて回答してください:
+{
+  "word": "英単語",
+  "meaning": "日本語の意味",
+  "pronunciation": "発音記号",
+  "level": "${level}",
+  "etymology": "語源や成り立ちの簡単な解説",
+  "examples": [
+    { "sentence": "例文1", "translation": "その和訳" },
+    { "sentence": "例文2", "translation": "その和訳" }
+  ],
+  "synonyms": ["類義語1", "類義語2"]
+}
+
+DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
+                    `;
+
+                    const API_URL = window.CARITAS_API_URL;
+                    try {
+                        const response = await fetch(`${API_URL}/api/generate-english`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt })
+                        });
+                        if (!response.ok) throw new Error(`HTTPエラー: ${response.status}`);
+                        const data = await response.json();
+                        if (!data.success) throw new Error(data.error);
+                        
+                        const wordData = JSON.parse(data.result);
+                        setCurrentWord(wordData);
+                        setEnglishProgress(prev => ({ ...prev, words: prev.words + 1 }));
+
+                    } catch (error) {
+                        console.error('AI英単語生成エラー:', error);
+                        alert(`英単語生成エラー: ${error.message}`);
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+
+                if (isLoading) {
+                    return (
+                        <div className="flex items-center justify-center h-64">
+                            <div className="text-center">
+                                <div className="text-4xl mb-4 pulse-animation">📚</div>
+                                <div className="text-xl font-bold text-green-600 mb-2">
+                                    AIが最適な英単語を生成中<span className="loading-dots"></span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
+
+                if (!currentWord) {
+                    return (
+                        <div>
+                            <div className="bg-white p-6 rounded-lg shadow border mb-6">
+                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    📚 AI英単語生成設定
+                                </h4>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">学年</label>
+                                        <select
+                                            value={selectedGrade}
+                                            onChange={(e) => setSelectedGrade(e.target.value)}
+                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                                        >
+                                            <option value="中1">中1</option>
+                                            <option value="中2">中2</option>
+                                            <option value="中3">中3</option>
+                                            <option value="高1">高1</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">レベル</label>
+                                        <select
+                                            value={selectedLevel}
+                                            onChange={(e) => setSelectedLevel(e.target.value)}
+                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
+                                        >
+                                            <option value="基本">基本</option>
+                                            <option value="標準">標準</option>
+                                            <option value="発展">発展</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="text-center">
+                                <button
+                                    onClick={() => generateEnglishWord(selectedGrade, selectedLevel)}
+                                    disabled={!apiStatus.connected}
+                                    className={`px-8 py-4 rounded-lg text-lg font-medium transition-all transform hover:scale-105 ${
+                                        apiStatus.connected 
+                                            ? 'bg-green-600 text-white hover:bg-green-700' 
+                                            : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    }`}
+                                >
+                                    {apiStatus.connected ? '🌱 新しい単語を学習' : '❌ AI接続が必要です'}
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div className="space-y-6">
+                        <div className="bg-white p-8 rounded-lg shadow-lg border-l-4 border-green-500">
+                            <h3 className="text-4xl font-bold text-gray-800 mb-2">{currentWord.word}</h3>
+                            <p className="text-lg text-gray-600 mb-4">{currentWord.pronunciation}</p>
+                            <p className="text-xl font-semibold text-green-700">{currentWord.meaning}</p>
+                        </div>
+
+                        <div className="bg-green-50 p-6 rounded-lg">
+                            <h4 className="font-bold text-green-900 mb-3">例文</h4>
+                            <ul className="space-y-3">
+                                {currentWord.examples.map((ex, i) => (
+                                    <li key={i}>
+                                        <p className="font-medium text-gray-800">{ex.sentence}</p>
+                                        <p className="text-sm text-gray-600">{ex.translation}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="bg-blue-50 p-6 rounded-lg">
+                                <h4 className="font-bold text-blue-900 mb-3">語源</h4>
+                                <p className="text-sm text-blue-800">{currentWord.etymology}</p>
+                            </div>
+                            <div className="bg-purple-50 p-6 rounded-lg">
+                                <h4 className="font-bold text-purple-900 mb-3">類義語</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {currentWord.synonyms.map(s => (
+                                        <span key={s} className="bg-purple-200 text-purple-800 px-3 py-1 rounded-full text-sm">
+                                            {s}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        <MathSection />
+                        <div className="text-center mt-8">
+                            <button
+                                onClick={() => generateEnglishWord(selectedGrade, selectedLevel)}
+                                className="bg-green-600 text-white px-8 py-4 rounded-lg text-lg font-medium"
+                            >
+                                🔄 次の単語へ
+                            </button>
+                        </div>
                     </div>
-                </div>
-            );
+                );
+            };
+
+            if (currentSection === 'study') {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
+                        <div className="max-w-4xl mx-auto">
+                            <div className="flex items-center gap-4 mb-6">
+                                <button
+                                    onClick={() => setCurrentSection('menu')}
+                                    className="bg-white p-3 rounded-lg shadow hover:shadow-md transition-all"
+                                >
+                                    ↩️
+                                </button>
+                                <h1 className="text-2xl font-bold text-gray-800">
+                                    {selectedSubject === 'math' ? '🤖 AI数学学習' : '📚 AI英単語学習'}
+                                </h1>
+                                <div className="text-sm text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
+                                    OpenAI版
+                                </div>
+                            </div>
+
+                            {selectedSubject === 'math' && <MathSection />}
+                            {selectedSubject === 'english_word' && <EnglishWordSection />}
+                        </div>
+                    </div>
+                );
+            }
         };
 
         const container = document.getElementById('root');
