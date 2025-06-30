@@ -81,19 +81,24 @@
 
             // API接続確認
             useEffect(() => {
+                const API_URL = `https://localhost:3001`;
+                window.CARITAS_API_URL = API_URL;
+
                 const checkApiStatus = async () => {
                     try {
-                        const response = await fetch('/api/health');
+                        console.log(`HTTPS接続確認: ${API_URL}/api/health`);
+                        const response = await fetch(`${API_URL}/api/health`);
                         const data = await response.json();
                         setApiStatus({
-                            connected: data.ai_available,
+                            connected: data.openai_available,
                             checking: false,
                             version: data.version,
-                            environment: data.environment
+                            environment: data.environment,
+                            apiUrl: API_URL
                         });
                     } catch (error) {
                         console.error('API接続確認エラー:', error);
-                        setApiStatus({ connected: false, checking: false });
+                        setApiStatus({ connected: false, checking: false, error: error.message });
                     }
                 };
                 checkApiStatus();
@@ -175,17 +180,35 @@
 DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 `;
 
+                const API_URL = window.CARITAS_API_URL;
+
                 try {
-                    const response = await fetch('/api/generate-math', {
+                    console.log(`問題生成リクエスト: ${API_URL}/api/generate-math`);
+                    
+                    const response = await fetch(`${API_URL}/api/generate-math`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt })
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Cache-Control': 'no-cache'
+                        },
+                        body: JSON.stringify({ prompt }),
+                        mode: 'cors'
                     });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ error: 'サーバーから有効なJSON応答がありません' }));
+                        const error = new Error(errorData.error || `HTTPエラー: ${response.status}`);
+                        error.response = response;
+                        throw error;
+                    }
 
                     const data = await response.json();
 
                     if (!data.success) {
-                        throw new Error(data.error || 'API エラー');
+                        const error = new Error(data.error || 'API エラー');
+                        error.response = response;
+                        throw error;
                     }
 
                     const problemData = JSON.parse(data.result);
@@ -201,7 +224,24 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
 
                 } catch (error) {
                     console.error('AI問題生成エラー:', error);
-                    alert(`問題生成エラー: ${error.message}\n\nしばらく時間をおいて再試行してください。`);
+                    let errorMessage = error.message;
+                    
+                    // Safari特有のエラーメッセージ
+                    if (isSafari && error.message.includes('Load failed')) {
+                        errorMessage = `Safari接続エラーが発生しました。\n\n解決方法:\n1. 開発メニュー > セキュリティで保護されていないリクエストを許可\n2. Chrome、Firefox、Edgeなどの他ブラウザをご利用ください`;
+                    }
+                    
+                    if (error.response) {
+                        try {
+                            const errorData = await error.response.json();
+                            console.error('サーバーからのエラー詳細:', errorData);
+                            errorMessage += `\n\nサーバー詳細: ${errorData.details || JSON.stringify(errorData)}`;
+                        } catch (e) {
+                            console.error('サーバーエラーの解析に失敗:', await error.response.text());
+                        }
+                    }
+                    
+                    alert(`問題生成エラー: ${errorMessage}\n\nしばらく時間をおいて再試行してください。`);
                     return null;
                 } finally {
                     setIsLoading(false);
@@ -215,6 +255,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 const [selectedLevel, setSelectedLevel] = useState('基礎');
                 const [showSteps, setShowSteps] = useState(false);
                 const [currentStep, setCurrentStep] = useState(0);
+
 
                 const gradeOptions = ['中1', '中2', '中3', '高1'];
                 const unitsByGrade = {
@@ -507,7 +548,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                 <p className="text-gray-600">体系数学・Progress 21準拠 + 本格AI問題生成</p>
                                 <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
                                     <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
-                                        🤖 Claude AI
+                                        🤖 OpenAI
                                     </span>
                                     <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
                                         📝 詳細解説
@@ -525,13 +566,41 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                         <div className={`w-3 h-3 rounded-full ${apiStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                                         <span className="text-sm font-medium">
                                             AI状態: {apiStatus.checking ? 'チェック中...' : (apiStatus.connected ? '接続済み' : '接続エラー')}
+                                            {apiStatus.browser && ` (${apiStatus.browser})`}
                                         </span>
                                     </div>
                                     {apiStatus.version && (
                                         <span className="text-xs text-gray-500">v{apiStatus.version}</span>
                                     )}
                                 </div>
+                                {apiStatus.apiUrl && (
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        接続URL: {apiStatus.apiUrl}
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Safari接続エラー時の特別な案内 */}
+                            {!apiStatus.connected && apiStatus.browser === 'Safari' && (
+                                <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mb-6">
+                                    <div className="flex items-start gap-3">
+                                        <div className="text-orange-500 text-xl">⚠️</div>
+                                        <div>
+                                            <h4 className="font-bold text-orange-800 mb-2">Safari接続エラー</h4>
+                                            <p className="text-orange-700 text-sm mb-3">
+                                                Safari の厳格なセキュリティ設定により、localhost への接続が制限されています。
+                                            </p>
+                                            <div className="text-orange-700 text-sm space-y-2">
+                                                <p><strong>解決方法：</strong></p>
+                                                <ol className="list-decimal list-inside space-y-1 ml-4">
+                                                    <li>Safari &gt; 開発メニュー &gt; 「セキュリティで保護されていないリクエストを許可」を有効にする</li>
+                                                    <li>Chrome、Firefox、Edge など他のブラウザをご利用ください（推奨）</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="grid gap-6">
                                 <div 
@@ -545,11 +614,11 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                         <div className="bg-blue-100 p-3 rounded-lg text-3xl">🧮</div>
                                         <div>
                                             <h2 className="text-xl font-bold text-gray-800">数学（完全AI版）</h2>
-                                            <p className="text-gray-600">体系数学準拠 + Claude AI問題生成</p>
+                                            <p className="text-gray-600">体系数学準拠 + OpenAI問題生成</p>
                                         </div>
                                     </div>
                                     <ul className="text-sm text-gray-700 space-y-1">
-                                        <li>• 🤖 <strong>Claude AI問題生成</strong>（思考力重視）</li>
+                                        <li>• 🤖 <strong>OpenAI問題生成</strong>（思考力重視）</li>
                                         <li>• 📝 <strong>6段階詳細解説</strong>（省略なし）</li>
                                         <li>• 🎯 <strong>学年・分野・難易度</strong>完全対応</li>
                                         <li>• 💡 <strong>ヒント・分析</strong>付きサポート</li>
@@ -562,7 +631,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
 
                             <div className="bg-white p-6 rounded-lg shadow-lg mt-8">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
-                                    🤖 Claude AI機能の特徴
+                                    🤖 OpenAI機能の特徴
                                 </h3>
                                 <div className="grid md:grid-cols-3 gap-4 text-sm">
                                     <div className="bg-purple-50 p-4 rounded-lg text-center">
@@ -601,7 +670,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                 🤖 AI数学学習
                             </h1>
                             <div className="text-sm text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
-                                Claude AI版
+                                OpenAI版
                             </div>
                         </div>
 
@@ -611,7 +680,9 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
             );
         };
 
-        ReactDOM.render(<StudyTool />, document.getElementById('root'));
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<StudyTool />);
     </script>
 </body>
 </html>
