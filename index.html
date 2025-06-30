@@ -81,26 +81,82 @@
 
             // API接続確認
             useEffect(() => {
-                const API_URL = `https://localhost:3001`;
-                window.CARITAS_API_URL = API_URL;
+                // 複数ポートを試行してAPI接続を確立
+                const tryPorts = [3001, 3002, 3000];
+                let API_URL = null;
 
                 const checkApiStatus = async () => {
-                    try {
-                        console.log(`HTTPS接続確認: ${API_URL}/api/health`);
-                        const response = await fetch(`${API_URL}/api/health`);
-                        const data = await response.json();
-                        setApiStatus({
-                            connected: data.openai_available,
-                            checking: false,
-                            version: data.version,
-                            environment: data.environment,
-                            apiUrl: API_URL
-                        });
-                    } catch (error) {
-                        console.error('API接続確認エラー:', error);
-                        setApiStatus({ connected: false, checking: false, error: error.message });
+                    let lastError = null;
+                    
+                    // 各ポートを順番に試行
+                    for (const port of tryPorts) {
+                        const testUrl = `http://localhost:${port}`;
+                        try {
+                            console.log(`API接続テスト: ${testUrl}/api/health`);
+                            const response = await fetch(`${testUrl}/api/health`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
+                                },
+                                mode: 'cors',
+                                credentials: 'omit', // Safari/Brave対応
+                                signal: AbortSignal.timeout(5000) // 5秒タイムアウト
+                            });
+                            
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                            }
+                            
+                            const data = await response.json();
+                            
+                            // 接続成功
+                            API_URL = testUrl;
+                            window.CARITAS_API_URL = API_URL;
+                            
+                            setApiStatus({
+                                connected: data.openai_available,
+                                checking: false,
+                                version: data.version,
+                                environment: data.environment,
+                                apiUrl: API_URL,
+                                port: port
+                            });
+                            
+                            console.log(`✅ API接続成功: ${API_URL}`);
+                            return; // 成功したら終了
+                            
+                        } catch (error) {
+                            console.log(`❌ ポート${port}接続失敗:`, error.message);
+                            lastError = error;
+                            continue; // 次のポートを試行
+                        }
                     }
+                    
+                    // すべてのポートで失敗
+                    console.error('すべてのポートで接続失敗:', lastError);
+                    
+                    // ブラウザ判定とエラーメッセージ
+                    const userAgent = navigator.userAgent;
+                    const isSafari = userAgent.includes('Safari') && !userAgent.includes('Chrome');
+                    const isBrave = userAgent.includes('Brave') || userAgent.includes('Chromium');
+                    
+                    let errorMessage = `API接続エラー: ${lastError?.message || '不明なエラー'}`;
+                    
+                    if (isSafari) {
+                        errorMessage += '\n\n🦁 Safari使用時の解決方法:\n1. Safari > 開発 > セキュリティ制限を無効にする\n2. Safari > 開発 > Cross-Origin制限を無効にする\n3. Chrome/Firefoxの使用を推奨';
+                    } else if (isBrave) {
+                        errorMessage += '\n\n🛡️ Brave使用時の解決方法:\n1. Brave設定 > セキュリティとプライバシー > シールドを下げる\n2. このサイトで広告・トラッカーブロックを無効にする\n3. Chrome/Firefoxの使用を推奨';
+                    }
+                    
+                    setApiStatus({ 
+                        connected: false, 
+                        checking: false, 
+                        error: errorMessage,
+                        testedPorts: tryPorts
+                    });
                 };
+                
                 checkApiStatus();
             }, []);
 
@@ -189,11 +245,11 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Cache-Control': 'no-cache'
+                            'Accept': 'application/json'
                         },
                         body: JSON.stringify({ prompt }),
-                        mode: 'cors'
+                        mode: 'cors',
+                        credentials: 'omit' // Safari対応
                     });
 
                     if (!response.ok) {
@@ -226,18 +282,21 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                     console.error('AI問題生成エラー:', error);
                     let errorMessage = error.message;
                     
-                    // Safari特有のエラーメッセージ
-                    if (isSafari && error.message.includes('Load failed')) {
-                        errorMessage = `Safari接続エラーが発生しました。\n\n解決方法:\n1. 開発メニュー > セキュリティで保護されていないリクエストを許可\n2. Chrome、Firefox、Edgeなどの他ブラウザをご利用ください`;
+                    // Safari特有のエラー対応
+                    const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+                    if (isSafari && (error.message.includes('Load failed') || error.message.includes('NetworkError'))) {
+                        errorMessage = `Safari接続エラーが発生しました。\n\n解決方法:\n1. Safari > 開発 > セキュリティポリシーを無効にする\n2. Chrome、Firefox、Edgeなどの他ブラウザをご利用ください\n3. HTTP接続が許可されているか確認してください`;
                     }
                     
                     if (error.response) {
                         try {
                             const errorData = await error.response.json();
                             console.error('サーバーからのエラー詳細:', errorData);
-                            errorMessage += `\n\nサーバー詳細: ${errorData.details || JSON.stringify(errorData)}`;
+                            if (!isSafari) { // Safari以外では詳細エラーを表示
+                                errorMessage += `\n\nサーバー詳細: ${errorData.details || JSON.stringify(errorData)}`;
+                            }
                         } catch (e) {
-                            console.error('サーバーエラーの解析に失敗:', await error.response.text());
+                            console.error('サーバーエラーの解析に失敗:', e.message);
                         }
                     }
                     

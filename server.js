@@ -17,23 +17,32 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://unpkg.com", "https://cdn.tailwindcss.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.tailwindcss.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
       connectSrc: ["'self'", "https://api.openai.com", "http://localhost:3001", "http://127.0.0.1:3001", "http://localhost:*", "http://127.0.0.1:*", "ws://localhost:*"],
       imgSrc: ["'self'", "data:", "https:"],
       workerSrc: ["'self'", "blob:", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://unpkg.com", "https://cdn.tailwindcss.com"],
     },
   },
-  strictTransportSecurity: process.env.NODE_ENV === 'production' ? false : undefined,
+  crossOriginResourcePolicy: false, // ブラウザ対応: CORP無効化
+  crossOriginOpenerPolicy: false,   // ブラウザ対応: COOP無効化
+  strictTransportSecurity: false,   // HTTP対応: HSTS無効化
 }));
 
 app.use(compression());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? ['https://caritas-study-app.vercel.app', 'https://your-custom-domain.com', 'http://localhost:3001']
-    : ['http://localhost:3000', 'http://localhost:3001'],
-  credentials: true
+    : [
+        'http://localhost:3000', 
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'null' // Safari file:// プロトコル対応
+      ],
+  credentials: false, // Safari対応: 認証情報を使わない
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Cache-Control'],
+  optionsSuccessStatus: 200 // Safari対応: OPTIONSリクエストの成功ステータス
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -95,9 +104,32 @@ app.post('/api/generate-math', async (req, res) => {
         console.log('📝 数学問題生成リクエスト (OpenAI)');
         console.log('リクエストボディ:', JSON.stringify(req.body, null, 2));
 
+        // OpenAI APIの要求に合わせて「json」を含むプロンプトに修正
+        const enhancedPrompt = `${prompt}
+
+回答は必ずJSON形式で出力してください。以下の構造に従ってください:
+{
+  "grade": "学年",
+  "level": "難易度", 
+  "unit": "単元名",
+  "problem": "問題文",
+  "steps": [
+    {
+      "step": "ステップ名",
+      "content": "内容",
+      "explanation": "解説",
+      "detail": "詳細"
+    }
+  ],
+  "answer": "答え",
+  "hint": "ヒント",
+  "difficulty_analysis": "難易度分析",
+  "learning_point": "学習ポイント"
+}`;
+
         const messages = [{
             role: 'user',
-            content: prompt,
+            content: enhancedPrompt,
         }];
         console.log('OpenAIへのリクエスト:', JSON.stringify(messages, null, 2));
 
@@ -176,9 +208,25 @@ app.post('/api/generate-english', async (req, res) => {
         console.log('📝 英語単語生成リクエスト (OpenAI)');
         console.log('リクエストボディ:', JSON.stringify(req.body, null, 2));
 
+        // OpenAI APIの要求に合わせて「json」を含むプロンプトに修正
+        const enhancedPrompt = `${prompt}
+
+回答は必ずJSON形式で出力してください。以下の構造に従ってください:
+{
+  "word": "英単語",
+  "meaning": "日本語での意味",
+  "level": "レベル",
+  "examples": [
+    {
+      "sentence": "例文",
+      "translation": "日本語訳"
+    }
+  ]
+}`;
+
         const messages = [{
             role: 'user',
-            content: prompt,
+            content: enhancedPrompt,
         }];
         console.log('OpenAIへのリクエスト:', JSON.stringify(messages, null, 2));
 
@@ -227,7 +275,7 @@ app.post('/api/generate-english', async (req, res) => {
         }
         res.status(500).json({
             success: false,
-            error: 'AI単語生成中にサーバー内部でエラーが発生しました',
+            error: 'AI英語単語生成中にサーバー内部でエラーが発生しました',
             details: error.message,
         });
     }
@@ -268,47 +316,33 @@ app.use((req, res) => {
   });
 });
 
-// サーバー起動
-try {
-    const options = {
-        key: fs.readFileSync('key.pem'),
-        cert: fs.readFileSync('cert.pem')
-    };
-
-    https.createServer(options, app).listen(port, () => {
-        console.log(`🚀 カリタス学習ツール サーバー起動 (HTTPS)`);
-        console.log(`📡 ポート: ${port}`);
-        console.log(`🤖 OpenAI AI機能: ${openai ? '✅ 有効' : '❌ 無効'}`);
-        console.log(`🌍 環境: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`🔐 証明書: key.pem, cert.pem を使用中`);
-        console.log(`🌐 URL: https://localhost:${port}`);
+// サーバー起動（テスト時は起動しない）
+if (require.main === module) {
+    const server = app.listen(port, () => {
+        console.log(`🚀 カリタスAI学習ツール起動`);
+        console.log(`📍 URL: http://localhost:${port}`);
+        console.log(`📊 環境: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`🤖 OpenAI: ${openai ? '✅ 接続済み' : '❌ 未設定'}`);
+        console.log(`⏰ 起動時刻: ${new Date().toLocaleString('ja-JP')}`);
     });
-} catch (error) {
-    if (error.code === 'ENOENT') {
-        console.error('❌ SSL証明書ファイルが見つかりません (key.pem, cert.pem)');
-        console.error('以下のコマンドで証明書を生成してください:');
-        console.error('openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes');
-        
-        console.log('\n...証明書なしでHTTPサーバーを起動します...');
-        app.listen(port, () => {
-            console.log(`🚀 カリタス学習ツール サーバー起動 (HTTP)`);
-            console.log(`📡 ポート: ${port}`);
-            console.log(`🌐 URL: http://localhost:${port}`);
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+        console.log('🛑 SIGTERM受信 - サーバーを安全に停止中...');
+        server.close(() => {
+            console.log('✅ サーバー停止完了');
+            process.exit(0);
         });
-    } else {
-        console.error('❌ サーバー起動エラー:', error);
-    }
+    });
+
+    process.on('SIGINT', () => {
+        console.log('🛑 SIGINT受信 - サーバーを安全に停止中...');
+        server.close(() => {
+            console.log('✅ サーバー停止完了');
+            process.exit(0);
+        });
+    });
 }
 
-// 優雅な終了処理
-process.on('SIGTERM', () => {
-  console.log('📴 サーバー終了中...');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('📴 サーバー終了中...');
-  process.exit(0);
-});
-
+// テスト用にappをエクスポート
 module.exports = app;
