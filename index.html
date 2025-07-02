@@ -61,7 +61,7 @@
 
         const StudyTool = () => {
             const [selectedSubject, setSelectedSubject] = useState(null);
-            const [currentSection, setCurrentSection] = useState('menu');
+            const [currentSection, setCurrentSection] = useState('menu'); // 'menu', 'math', 'english', 'admin'
             const [isLoading, setIsLoading] = useState(false);
             const [apiStatus, setApiStatus] = useState({ connected: false, checking: true });
             
@@ -78,6 +78,22 @@
 
             const [currentProblem, setCurrentProblem] = useState(null);
             const [currentWord, setCurrentWord] = useState(null);
+            const [problemPoolStats, setProblemPoolStats] = useState(null);
+            const [usePool, setUsePool] = useState(true); // デフォルトでプール使用
+            
+            // 管理画面用の状態
+            const [adminMode, setAdminMode] = useState(false);
+            const [generatedProblems, setGeneratedProblems] = useState([]);
+            const [isGenerating, setIsGenerating] = useState(false);
+            
+            // 確認ダイアログ用の状態
+            const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+            const [confirmConfig, setConfirmConfig] = useState({
+                title: '',
+                message: '',
+                onConfirm: null,
+                onCancel: null
+            });
 
             // API接続確認
             useEffect(() => {
@@ -160,13 +176,232 @@
                 checkApiStatus();
             }, []);
 
+            // 問題プール統計情報を取得（独立関数として定義）
+            const fetchProblemPoolStats = async () => {
+                if (!window.CARITAS_API_URL) return;
+                
+                try {
+                    const response = await fetch(`${window.CARITAS_API_URL}/api/problem-pool/stats`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        setProblemPoolStats(data.stats);
+                        console.log('📊 問題プール統計情報取得成功:', data.stats);
+                        return data.stats;
+                    } else {
+                        console.log('📊 統計情報取得失敗: HTTPステータス', response.status);
+                        return null;
+                    }
+                } catch (error) {
+                    console.log('📊 問題プール統計情報取得エラー:', error.message);
+                    return null;
+                }
+            };
+
+            // 初期統計情報取得
+            useEffect(() => {
+                if (apiStatus.connected) {
+                    fetchProblemPoolStats();
+                }
+            }, [apiStatus.connected]);
+
+            // 問題をプールに追加する関数
+            const addProblemToPool = async (problem) => {
+                try {
+                    const API_URL = window.CARITAS_API_URL;
+                    console.log('📝 問題をプールに追加中:', problem.id || 'ID未設定');
+                    
+                    const response = await fetch(`${API_URL}/api/problem-pool/add`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ problem }),
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTPエラー: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log('✅ 問題プール追加成功:', data.problem_id);
+                        
+                        // 統計情報を再取得
+                        await fetchProblemPoolStats();
+                        
+                        return true;
+                    }
+                    
+                    throw new Error('問題の追加に失敗しました');
+                    
+                } catch (error) {
+                    console.error('問題プール追加エラー:', error);
+                    showAlert('問題追加エラー', `問題をプールに追加できませんでした。\n\nエラー詳細:\n${error.message}\n\nサーバー接続を確認してください。`);
+                    return false;
+                }
+            };
+
+            // 管理用問題生成関数（単一問題）
+            const generateProblemForPool = async (subject, grade, unit, level) => {
+                setIsGenerating(true);
+                
+                try {
+                    let problem = null;
+                    
+                    if (subject === 'math') {
+                        problem = await generateMathProblem(grade, unit, level);
+                    } else if (subject === 'english') {
+                        // 英語問題生成（将来の拡張用）
+                        problem = await generateEnglishWord(grade, level);
+                    }
+                    
+                    if (problem) {
+                        // プール追加フラグを設定
+                        problem.source = 'generated_for_pool';
+                        problem.created_for_pool = true;
+                        
+                        // 生成された問題リストに追加
+                        setGeneratedProblems(prev => [problem, ...prev]);
+                        
+                        return problem;
+                    }
+                    
+                } catch (error) {
+                    console.error('管理用問題生成エラー:', error);
+                    showAlert('問題生成エラー', `AI問題生成に失敗しました。\n\nエラー詳細:\n${error.message}\n\nAPI接続状況を確認してください。`);
+                } finally {
+                    setIsGenerating(false);
+                }
+                
+                return null;
+            };
+
+            // 管理画面用一括問題生成関数
+            const generateBatchProblemsForPool = async (subject, grade, unit, level, count) => {
+                if (subject !== 'math') {
+                    console.log('現在は数学のみ対応');
+                    return;
+                }
+
+                setIsGenerating(true);
+                try {
+                    console.log(`🚀 ${count}問の一括生成開始`);
+                    
+                    const API_URL = window.CARITAS_API_URL;
+                    const response = await fetch(`${API_URL}/api/generate-math-batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            grade,
+                            unit,
+                            level,
+                            count
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTPエラー: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        throw new Error(data.error || '一括生成に失敗しました');
+                    }
+
+                    // レスポンスをパース
+                    const batchResult = JSON.parse(data.result);
+                    if (!batchResult.problems || !Array.isArray(batchResult.problems)) {
+                        throw new Error('一括生成の応答形式が不正です');
+                    }
+
+                    console.log(`✅ ${batchResult.problems.length}問の一括生成成功`);
+
+                    // 生成された問題を全て追加
+                    const newProblems = batchResult.problems.map(problem => ({
+                        ...problem,
+                        addedToPool: false,
+                        source: 'generated_for_pool_batch',
+                        created_for_pool: true,
+                        timestamp: new Date().toISOString(),
+                        id: `batch_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+                    }));
+
+                    setGeneratedProblems(prev => [...newProblems, ...prev]);
+                    
+                    console.log(`📝 ${newProblems.length}問を生成問題リストに追加完了`);
+
+                } catch (error) {
+                    console.error('管理用一括問題生成エラー:', error);
+                    showAlert('一括問題生成エラー', `AI一括問題生成に失敗しました。\n\nエラー詳細:\n${error.message}\n\nAPI接続状況を確認してください。`);
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
             // データ自動保存
             useEffect(() => {
                 localStorage.setItem('caritas_mathProgress', JSON.stringify(mathProgress));
                 localStorage.setItem('caritas_englishProgress', JSON.stringify(englishProgress));
             }, [mathProgress, englishProgress]);
 
-            // AI問題生成関数
+            // 問題プールから問題取得関数
+            const getProblemFromPool = async (grade, unit, level) => {
+                setIsLoading(true);
+                
+                try {
+                    const API_URL = window.CARITAS_API_URL;
+                    console.log(`📚 問題プール取得リクエスト: ${grade}/${unit}/${level}`);
+                    
+                    const response = await fetch(`${API_URL}/api/problem-pool/${encodeURIComponent(grade)}/${encodeURIComponent(unit)}/${encodeURIComponent(level)}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            const errorData = await response.json();
+                            console.log('📚 プールに問題なし:', errorData.message);
+                            showAlert('問題プールが空です', `指定された条件の問題が見つかりませんでした。\n\n詳細: ${errorData.message}\n\n管理画面でAI問題を生成してプールに追加するか、\nAI生成機能をご利用ください。`);
+                            return null;
+                        }
+                        throw new Error(`HTTPエラー: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.success && data.problem) {
+                        setCurrentProblem(data.problem);
+                        
+                        // 進捗更新
+                        setMathProgress(prev => ({
+                            ...prev,
+                            solved: prev.solved + 1
+                        }));
+                        
+                        console.log('✅ 問題プールから取得成功:', data.problem.id);
+                        return data.problem;
+                    }
+                    
+                    throw new Error('プールから問題を取得できませんでした');
+                    
+                } catch (error) {
+                    console.error('問題プール取得エラー:', error);
+                    showAlert('問題プール取得エラー', `問題プールからの取得に失敗しました。\n\nエラー詳細:\n${error.message}\n\nサーバー接続を確認するか、AI生成機能をご利用ください。`);
+                    return null;
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            // AI問題生成関数（詳細解説版）
             const generateMathProblem = async (grade, unit, level) => {
                 setIsLoading(true);
 
@@ -183,6 +418,8 @@
 2. 思考力を要する良質な問題
 3. カリタス中学校の高度なカリキュラムに対応
 
+**解説は絶対に省略せず、中学生が理解できるよう一つ一つの手順を丁寧に説明してください。**
+
 回答は以下のJSON形式でお願いします:
 {
   "grade": "${grade}",
@@ -191,40 +428,46 @@
   "problem": "問題文（数式含む）",
   "steps": [
     {
-      "step": "問題理解",
-      "content": "問題の要求と与えられた条件を整理",
-      "explanation": "何を求められているか、どんな条件があるかを明確化",
-      "detail": "より詳しい解説や注意点"
+      "step": "問題理解・条件整理",
+      "content": "問題文から読み取れる情報を全て整理し、求めるものを明確にする",
+      "explanation": "なぜこの情報が重要なのか、どのように問題を解釈するかを詳しく説明",
+      "detail": "見落としがちなポイントや、問題文の読み方のコツ"
     },
     {
-      "step": "解法選択",
-      "content": "この問題に最適な解法を選択",
-      "explanation": "なぜその解法を選ぶのかの理由",
-      "detail": "他の解法との比較や、選択理由の詳細"
+      "step": "解法の選択と方針決定",
+      "content": "複数の解法から最適なものを選択し、なぜその方法が良いかを判断する",
+      "explanation": "解法選択の根拠を論理的に説明し、他の方法との比較も行う",
+      "detail": "初学者が迷いがちな解法選択のポイントと、効率的な解き方の理由"
     },
     {
-      "step": "計算過程",
-      "content": "具体的な計算手順",
-      "explanation": "各計算の意味と目的",
-      "detail": "計算の工夫や注意すべき点"
+      "step": "式の変形・計算の準備",
+      "content": "解法に必要な公式や定理を確認し、計算の準備を整える",
+      "explanation": "使用する公式がなぜ適用できるのか、条件を満たしているかを確認",
+      "detail": "公式を覚えるコツや、条件確認の重要性について"
     },
     {
-      "step": "思考の流れ",
-      "content": "論理的な思考プロセス",
-      "explanation": "どのような思考で解答に到達するか",
-      "detail": "つまずきやすいポイントとその対策"
+      "step": "計算過程（詳細ステップ）",
+      "content": "一行一行の計算を省略せず、すべての変形過程を丁寧に示す",
+      "explanation": "各変形の理由と、なぜその計算が必要なのかを詳しく説明",
+      "detail": "計算ミスを防ぐコツ、計算の工夫、符号や分数の扱い方"
     },
     {
-      "step": "検算・確認",
-      "content": "答えの正しさを確認する方法",
-      "explanation": "なぜ検算が重要かの説明",
-      "detail": "具体的な検算手順と確認ポイント"
+      "step": "論理的思考と推論",
+      "content": "計算結果から結論を導く論理的プロセスを明確に示す",
+      "explanation": "なぜその結論が正しいと言えるのか、推論の根拠を説明",
+      "detail": "数学的推論の進め方、証明的な考え方のポイント"
     },
     {
-      "step": "類似問題への応用",
-      "content": "この解法が使える他の問題例",
-      "explanation": "学習した内容の応用範囲",
-      "detail": "発展的な問題や実際の入試での出題例"
+      "step": "検算と解の妥当性確認",
+      "content": "複数の方法で答えを確認し、解が問題の条件を満たすかチェック",
+      "explanation": "検算の具体的手順と、解の意味が現実的かどうかの確認方法",
+      "detail": "見落としがちな検算ポイント、解の範囲や単位の確認"
+    },
+    {
+      "step": "まとめと応用・発展",
+      "content": "解答プロセス全体のまとめと、類似問題への応用方法",
+      "explanation": "この問題で学んだことの本質と、他の問題でも使える考え方",
+      "detail": "発展的な問題例、入試でよく出る類似パターン、覚えておくべきポイント"
     }
   ],
   "answer": "最終的な答案",
@@ -300,11 +543,384 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         }
                     }
                     
-                    alert(`問題生成エラー: ${errorMessage}\n\nしばらく時間をおいて再試行してください。`);
+                    showAlert('AI問題生成エラー', `AI問題生成に失敗しました。\n\nエラー詳細:\n${errorMessage}\n\nしばらく時間をおいて再試行してください。`);
                     return null;
                 } finally {
                     setIsLoading(false);
                 }
+            };
+
+            // カスタム確認ダイアログコンポーネント
+            const ConfirmDialog = ({ show, config, onClose }) => {
+                if (!show) return null;
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                        <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                            <div className="p-6">
+                                <h3 className="text-lg font-bold text-gray-900 mb-3">
+                                    {config.title || '確認'}
+                                </h3>
+                                <div className="text-gray-700 mb-6 whitespace-pre-line">
+                                    {config.message}
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+                                    <button
+                                        onClick={() => {
+                                            if (config.onCancel) config.onCancel();
+                                            onClose();
+                                        }}
+                                        className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (config.onConfirm) config.onConfirm();
+                                            onClose();
+                                        }}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                                    >
+                                        実行する
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // カスタム確認ダイアログを使用するヘルパー関数
+            const showConfirm = (title, message, onConfirm, onCancel = null) => {
+                setConfirmConfig({ title, message, onConfirm, onCancel });
+                setShowConfirmDialog(true);
+            };
+
+            // カスタムアラートダイアログを使用するヘルパー関数
+            const showAlert = (title, message) => {
+                setConfirmConfig({ 
+                    title, 
+                    message, 
+                    onConfirm: () => {}, 
+                    onCancel: null 
+                });
+                setShowConfirmDialog(true);
+            };
+
+            // 管理画面コンポーネント
+            const AdminSection = () => {
+                const [selectedSubject, setSelectedSubject] = useState('math');
+                const [selectedGrade, setSelectedGrade] = useState('中2');
+                const [selectedUnit, setSelectedUnit] = useState('全分野');
+                const [selectedLevel, setSelectedLevel] = useState('基礎');
+                const [batchCount, setBatchCount] = useState(5);
+
+                const gradeOptions = ['中1', '中2', '中3', '高1'];
+                const mathUnitsByGrade = {
+                    '中1': ['全分野', '正負の数', '文字式', '一次方程式', '比例・反比例'],
+                    '中2': ['全分野', '式の計算', '連立方程式', '一次関数', '図形の性質'],
+                    '中3': ['全分野', '式の展開・因数分解', '平方根', '二次方程式', '二次関数'],
+                    '高1': ['全分野', '数と式', '集合と命題', '二次関数', '図形と計量']
+                };
+                const levelOptions = [
+                    { value: '基礎', description: '基本的な計算・公式の確認' },
+                    { value: '標準', description: '定期テスト・教科書レベル' },
+                    { value: '応用', description: '思考力・複合問題' },
+                    { value: '発展', description: '入試レベル・高度な問題' }
+                ];
+
+                const handleBatchGenerate = async () => {
+                    if (!apiStatus.connected) {
+                        showAlert('AI接続エラー', 'AI接続が必要です。APIキーの設定を確認してください。');
+                        return;
+                    }
+
+                    const confirmMessage = `${batchCount}問の${selectedSubject === 'math' ? '数学' : '英語'}問題を一括生成します。\n\n設定詳細:\n・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル\n・生成数: ${batchCount}問\n\n※一度に${batchCount}問を生成するため、通常より時間がかかります`;
+                    
+                    showConfirm(
+                        '🤖 AI一括問題生成の確認',
+                        confirmMessage,
+                        async () => {
+                            await generateBatchProblemsForPool(selectedSubject, selectedGrade, selectedUnit, selectedLevel, batchCount);
+                        }
+                    );
+                };
+
+                const handleAddToPool = async (problem) => {
+                    const success = await addProblemToPool(problem);
+                    if (success) {
+                        // 追加済みマークを付ける
+                        setGeneratedProblems(prev => 
+                            prev.map(p => p === problem ? { ...p, addedToPool: true } : p)
+                        );
+                    }
+                };
+
+                // 一括プール追加関数
+                const handleBatchAddToPool = async (problems) => {
+                    try {
+                        console.log(`🚀 ${problems.length}問の一括プール追加開始`);
+                        
+                        const API_URL = window.CARITAS_API_URL;
+                        const response = await fetch(`${API_URL}/api/problem-pool/add-batch`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ problems })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTPエラー: ${response.status}`);
+                        }
+
+                        const data = await response.json();
+                        
+                        console.log('API応答データ:', data);
+                        
+                        if (data.success || (data.success_count && data.success_count > 0)) {
+                            const successCount = data.success_count || 0;
+                            const failureCount = data.failure_count || 0;
+                            
+                            console.log(`✅ 一括プール追加完了: 成功${successCount}問, 失敗${failureCount}問`);
+                            
+                            // 成功した問題に追加済みマークを付ける
+                            if (data.results && Array.isArray(data.results)) {
+                                const successfulResults = data.results.filter(r => r.success);
+                                const successfulIndices = successfulResults.map(r => r.index);
+                                
+                                setGeneratedProblems(prev => 
+                                    prev.map((p, globalIndex) => {
+                                        // この問題が今回追加対象だった場合
+                                        const localIndex = problems.findIndex(prob => prob === p);
+                                        if (localIndex !== -1 && successfulIndices.includes(localIndex)) {
+                                            return { ...p, addedToPool: true };
+                                        }
+                                        return p;
+                                    })
+                                );
+                            }
+
+                            // 統計情報を更新
+                            try {
+                                await fetchProblemPoolStats();
+                            } catch (statsError) {
+                                console.warn('統計情報更新エラー:', statsError);
+                            }
+                            
+                            // 結果メッセージ
+                            const message = failureCount > 0
+                                ? `一括追加完了\n\n成功: ${successCount}問\n失敗: ${failureCount}問\n\n一部の問題で追加に失敗しました。`
+                                : `🎉 ${successCount}問の一括追加が完了しました！\n\n問題プールで利用できるようになりました。`;
+                            
+                            showAlert('一括追加結果', message);
+                            
+                        } else {
+                            throw new Error(data.error || data.message || '一括追加に失敗しました');
+                        }
+                        
+                    } catch (error) {
+                        console.error('一括プール追加エラー:', error);
+                        showAlert('一括追加エラー', `一括プール追加に失敗しました。\n\nエラー詳細:\n${error.message}\n\nサーバー接続を確認してください。`);
+                    }
+                };
+
+                const handleAddAllToPool = async () => {
+                    const unadded = generatedProblems.filter(p => !p.addedToPool);
+                    if (unadded.length === 0) {
+                        showAlert('追加できません', '追加可能な問題がありません。\n先に問題を生成してください。');
+                        return;
+                    }
+
+                    const confirmMessage = `生成された${unadded.length}問をプールに一括追加します。\n\n追加される問題:\n${unadded.map((p, i) => `${i+1}. ${p.grade} ${p.unit} (${p.level})`).join('\n')}\n\nプールに追加すると、今後の学習で利用できるようになります。`;
+                    
+                    showConfirm(
+                        '📚 プール一括追加の確認',
+                        confirmMessage,
+                        async () => {
+                            await handleBatchAddToPool(unadded);
+                        }
+                    );
+                };
+
+                return (
+                    <div className="space-y-4 sm:space-y-6">
+                        {/* 管理画面ヘッダー */}
+                        <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white p-4 sm:p-6 rounded-lg">
+                            <h2 className="text-xl sm:text-2xl font-bold mb-2">⚙️ 問題プール管理画面</h2>
+                            <p className="text-sm sm:text-base opacity-90">AI問題生成 → プール追加で問題データベースを構築</p>
+                        </div>
+
+                        {/* 統計情報 */}
+                        {problemPoolStats && (
+                            <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
+                                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                    📊 現在のプール統計
+                                </h3>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                                    <div className="bg-blue-50 p-3 rounded-lg">
+                                        <div className="text-2xl font-bold text-blue-700">{problemPoolStats.total_problems}</div>
+                                        <div className="text-sm text-blue-600">総問題数</div>
+                                    </div>
+                                    {Object.entries(problemPoolStats.problems_by_level || {}).map(([level, count]) => (
+                                        <div key={level} className="bg-gray-50 p-3 rounded-lg">
+                                            <div className="text-xl font-bold text-gray-700">{count}</div>
+                                            <div className="text-sm text-gray-600">{level}レベル</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 問題生成設定 */}
+                        <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
+                            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                🤖 問題生成設定
+                            </h3>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">科目</label>
+                                    <select
+                                        value={selectedSubject}
+                                        onChange={(e) => setSelectedSubject(e.target.value)}
+                                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm"
+                                    >
+                                        <option value="math">数学</option>
+                                        <option value="english" disabled>英語（準備中）</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">学年</label>
+                                    <select
+                                        value={selectedGrade}
+                                        onChange={(e) => setSelectedGrade(e.target.value)}
+                                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm"
+                                    >
+                                        {gradeOptions.map(grade => (
+                                            <option key={grade} value={grade}>{grade}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">分野</label>
+                                    <select
+                                        value={selectedUnit}
+                                        onChange={(e) => setSelectedUnit(e.target.value)}
+                                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm"
+                                        disabled={selectedSubject !== 'math'}
+                                    >
+                                        {selectedSubject === 'math' && mathUnitsByGrade[selectedGrade].map(unit => (
+                                            <option key={unit} value={unit}>{unit}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">難易度</label>
+                                    <select
+                                        value={selectedLevel}
+                                        onChange={(e) => setSelectedLevel(e.target.value)}
+                                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm"
+                                    >
+                                        {levelOptions.map(level => (
+                                            <option key={level.value} value={level.value}>
+                                                {level.value}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* 生成数設定と実行ボタン */}
+                            <div className="flex flex-col sm:flex-row gap-4 items-end">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">生成数</label>
+                                    <select
+                                        value={batchCount}
+                                        onChange={(e) => setBatchCount(parseInt(e.target.value))}
+                                        className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm"
+                                    >
+                                        <option value={5}>5問</option>
+                                        <option value={10}>10問</option>
+                                        <option value={20}>20問</option>
+                                    </select>
+                                </div>
+                                
+                                <button
+                                    onClick={handleBatchGenerate}
+                                    disabled={!apiStatus.connected || isGenerating}
+                                    className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                                        apiStatus.connected && !isGenerating
+                                            ? 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800' 
+                                            : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                    }`}
+                                >
+                                    {isGenerating ? (
+                                        <>🔄 {batchCount}問を一括生成中...</>
+                                    ) : (
+                                        <>🚀 {batchCount}問を一括生成</>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 生成された問題リスト */}
+                        {generatedProblems.length > 0 && (
+                            <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                        📝 生成された問題 ({generatedProblems.length}問)
+                                    </h3>
+                                    <button
+                                        onClick={handleAddAllToPool}
+                                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-medium"
+                                    >
+                                        📚 全てをプールに追加
+                                    </button>
+                                </div>
+                                
+                                <div className="space-y-4 max-h-96 overflow-y-auto">
+                                    {generatedProblems.map((problem, index) => (
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm font-medium text-gray-600">
+                                                        {problem.grade} / {problem.unit} / {problem.level}
+                                                    </span>
+                                                    {problem.addedToPool && (
+                                                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                                                            ✅ 追加済み
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {!problem.addedToPool && (
+                                                    <button
+                                                        onClick={() => handleAddToPool(problem)}
+                                                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                                                    >
+                                                        📚 プールに追加
+                                                    </button>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="bg-gray-50 p-3 rounded text-sm">
+                                                <p className="font-medium text-gray-800 mb-2">問題:</p>
+                                                <p className="text-gray-700 whitespace-pre-wrap">{problem.problem}</p>
+                                                {problem.answer && (
+                                                    <>
+                                                        <p className="font-medium text-gray-800 mt-3 mb-1">解答:</p>
+                                                        <p className="text-green-700 font-medium">{problem.answer}</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
             };
 
             // 数学学習セクション
@@ -314,6 +930,25 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 const [selectedLevel, setSelectedLevel] = useState('基礎');
                 const [showSteps, setShowSteps] = useState(false);
                 const [currentStep, setCurrentStep] = useState(0);
+                const [studyMode, setStudyMode] = useState('setup'); // 'setup' | 'studying'
+                const [studySettings, setStudySettings] = useState(null);
+                const [problemCount, setProblemCount] = useState(1);
+                const [usePool, setUsePool] = useState(true); // デフォルトでプールを使用
+                const [mathCurrentProblem, setMathCurrentProblem] = useState(null); // MathSection専用の問題状態
+                const [mathIsLoading, setMathIsLoading] = useState(false); // MathSection専用のローディング状態
+                const [forceUpdate, setForceUpdate] = useState(0); // 強制更新用
+
+                // 問題状態の変化を監視して強制更新
+                useEffect(() => {
+                    if (mathCurrentProblem && studyMode === 'studying') {
+                        console.log('🔄 useEffect - 問題表示トリガー:', {
+                            mathCurrentProblem: !!mathCurrentProblem,
+                            studyMode,
+                            problemId: mathCurrentProblem.id
+                        });
+                        setForceUpdate(prev => prev + 1);
+                    }
+                }, [mathCurrentProblem, studyMode]);
 
 
                 const gradeOptions = ['中1', '中2', '中3', '高1'];
@@ -330,40 +965,657 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                     { value: '発展', description: '入試レベル・高度な問題' }
                 ];
 
-                if (isLoading) {
+                // 学習開始関数
+                const startStudySession = async () => {
+                    console.log('🚀🚀🚀 [診断] 学習開始ボタンがクリックされました');
+                    console.log('🔍 [診断] 現在の状態詳細:', {
+                        selectedGrade,
+                        selectedUnit,
+                        selectedLevel,
+                        usePool,
+                        apiConnected: apiStatus.connected,
+                        problemPoolStats,
+                        currentStudyMode: studyMode,
+                        currentMathProblem: mathCurrentProblem,
+                        currentLoading: mathIsLoading
+                    });
+                    
+                    // 診断: クリック検出テスト
+                    alert('🔍 [診断] 学習開始ボタンがクリックされました！この画面が表示されれば、ボタンは動作しています。');
+                    
+                    const settings = {
+                        grade: selectedGrade,
+                        unit: selectedUnit,
+                        level: selectedLevel,
+                        usePool,
+                        startTime: new Date()
+                    };
+                    console.log('📋 [診断] 学習設定:', settings);
+                    
+                    try {
+                        console.log('🔄 [診断] 状態更新開始...');
+                        
+                        // 状態更新を順次実行
+                        setStudySettings(settings);
+                        console.log('✅ [診断] setStudySettings完了');
+                        
+                        setStudyMode('studying');
+                        console.log('✅ [診断] setStudyMode("studying")完了');
+                        
+                        setProblemCount(1);
+                        console.log('✅ [診断] setProblemCount(1)完了');
+                        
+                        setMathCurrentProblem(null);
+                        console.log('✅ [診断] setMathCurrentProblem(null)完了');
+                        
+                        setShowSteps(false);
+                        console.log('✅ [診断] setShowSteps(false)完了');
+                        
+                        setCurrentStep(0);
+                        console.log('✅ [診断] setCurrentStep(0)完了');
+                        
+                        console.log('🔄 [診断] 全ての状態更新完了 - studyMode: studying');
+                        
+                        // React状態更新の完了を待つ
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        console.log('⏱️ [診断] 状態更新待機完了');
+                        
+                        // 最初の問題を取得（完了まで待機）
+                        console.log('📥 [診断] 問題取得を開始します');
+                        const result = await getNextProblem(settings);
+                        console.log('✅ [診断] getNextProblem完了:', result ? 'SUCCESS' : 'FAILED');
+                        
+                        if (result) {
+                            console.log('🎉 [診断] 学習開始成功！問題が取得できました');
+                        } else {
+                            console.log('❌ [診断] 学習開始失敗：問題が取得できませんでした');
+                        }
+                        
+                    } catch (error) {
+                        console.error('❌ [診断] startStudySession エラー:', error);
+                        alert(`❌ [診断] エラーが発生しました: ${error.message}`);
+                        showAlert('学習開始エラー', `学習開始に失敗しました。\n\nエラー: ${error.message}`);
+                    }
+                };
+
+                // 次の問題取得関数
+                const getNextProblem = async (settings = studySettings) => {
+                    console.log('🔍 デバッグ - getNextProblem開始:', {
+                        settings,
+                        studySettings,
+                        usePool: settings?.usePool,
+                        grade: settings?.grade,
+                        unit: settings?.unit,
+                        level: settings?.level
+                    });
+                    
+                    // 問題カウントを先に更新（UIの同期を改善）
+                    setProblemCount(prev => prev + 1);
+                    
+                    setMathCurrentProblem(null);
+                    setShowSteps(false);
+                    setCurrentStep(0);
+                    setMathIsLoading(true);
+                    
+                    let problem = null;
+                    try {
+                        console.log('📥 問題取得開始:', settings.usePool ? 'プールから取得' : 'AI生成');
+                        
+                        if (settings.usePool) {
+                            console.log('📚 プール問題取得を試行中...');
+                            problem = await getProblemFromPool(settings.grade, settings.unit, settings.level);
+                        } else {
+                            console.log('🤖 AI問題生成を試行中...');
+                            problem = await generateMathProblem(settings.grade, settings.unit, settings.level);
+                        }
+                        
+                        console.log('🔍 問題取得結果:', {
+                            problemExists: !!problem,
+                            problemId: problem?.id,
+                            problemGrade: problem?.grade,
+                            problemUnit: problem?.unit,
+                            problemLevel: problem?.level
+                        });
+                        
+                        if (problem) {
+                            // 問題取得成功時は即座に状態を更新
+                            setMathCurrentProblem(problem);
+                            setMathIsLoading(false);
+                            console.log('✅ mathCurrentProblem更新完了');
+                            return problem;
+                        } else {
+                            console.log('❌ 問題取得失敗 - problemがnull');
+                            setMathIsLoading(false);
+                            return null;
+                        }
+                    } catch (error) {
+                        console.error('❌ getNextProblem エラー:', error);
+                        setMathIsLoading(false);
+                        showAlert('問題取得エラー', `問題の取得に失敗しました。\n\nエラー: ${error.message}`);
+                        return null;
+                    }
+                };
+
+                // 設定画面に戻る関数
+                const backToSetup = () => {
+                    setStudyMode('setup');
+                    setMathCurrentProblem(null);
+                    setShowSteps(false);
+                    setCurrentStep(0);
+                    setStudySettings(null);
+                    setProblemCount(1);
+                };
+
+                // 修正：単純化された条件分岐
+                console.log('🔍 [修正] レンダリング判定:', {
+                    studyMode,
+                    mathCurrentProblem: !!mathCurrentProblem,
+                    mathIsLoading,
+                    forceUpdate
+                });
+
+                // 学習モードで問題がある場合：問題表示
+                if (studyMode === 'studying' && mathCurrentProblem && !mathIsLoading) {
+                    console.log('✅ [修正] 問題表示画面をレンダリング');
                     return (
-                        <div className="flex items-center justify-center h-64">
-                            <div className="text-center">
-                                <div className="text-4xl mb-4 pulse-animation">🤖</div>
-                                <div className="text-xl font-bold text-blue-600 mb-2">
-                                    AIが高品質な問題を生成中<span className="loading-dots"></span>
+                        <div className="space-y-4 sm:space-y-6">
+                            {/* 学習セッション情報 */}
+                            {studySettings && (
+                                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <div>
+                                            <h2 className="text-lg font-bold">🎯 学習セッション中</h2>
+                                            <p className="text-sm opacity-90">
+                                                {studySettings.grade} | {studySettings.unit} | {studySettings.level}レベル
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-center">
+                                                <div className="text-xl font-bold">{problemCount - 1}</div>
+                                                <div className="text-xs opacity-80">問題目</div>
+                                            </div>
+                                            <button
+                                                onClick={backToSetup}
+                                                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm font-medium transition-all"
+                                            >
+                                                ⚙️ 設定変更
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="text-sm text-gray-600 mb-4">
-                                    体系数学に準拠した思考力問題を作成しています
+                            )}
+
+                            {/* レスポンシブな問題表示 */}
+                            <div className="bg-blue-50 p-4 sm:p-6 rounded-lg">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
+                                    <h3 className="text-lg sm:text-xl font-bold text-blue-900">
+                                        {mathCurrentProblem.source === 'pool' ? '📚' : '🤖'} {mathCurrentProblem.source === 'pool' ? 'プール問題' : 'AI生成問題'} - {mathCurrentProblem.grade} {mathCurrentProblem.unit}
+                                    </h3>
+                                    <span className={`self-start sm:self-auto px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+                                        mathCurrentProblem.level === '基礎' ? 'bg-green-200 text-green-800' :
+                                        mathCurrentProblem.level === '標準' ? 'bg-blue-200 text-blue-800' :
+                                        mathCurrentProblem.level === '応用' ? 'bg-orange-200 text-orange-800' :
+                                        'bg-red-200 text-red-800'
+                                    }`}>
+                                        {mathCurrentProblem.level}レベル
+                                    </span>
                                 </div>
-                                <div className="w-64 bg-gray-200 rounded-full h-2 mx-auto">
+                                
+                                <div className="bg-white p-4 sm:p-6 rounded border-l-4 border-blue-500">
+                                    <p className="text-base sm:text-lg font-medium mb-4 whitespace-pre-wrap leading-relaxed">{mathCurrentProblem.problem}</p>
+                                    {mathCurrentProblem.hint && (
+                                        <div className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
+                                            <p className="text-sm text-yellow-800">
+                                                💡 <strong>ヒント:</strong> {mathCurrentProblem.hint}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {!showSteps ? (
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                    <button
+                                        onClick={() => setShowSteps(true)}
+                                        className="bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 touch-manipulation font-medium"
+                                    >
+                                        🧠 <span className="sm:hidden">解説を見る</span><span className="hidden sm:inline">AI詳細解説を見る</span>
+                                    </button>
+                                    <button
+                                        onClick={() => getNextProblem()}
+                                        className="bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium"
+                                    >
+                                        🔄 <span className="sm:hidden">次の問題</span><span className="hidden sm:inline">次の問題を{studySettings?.usePool ? '取得' : '生成'}</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* 解説とナビゲーション部分は後で追加 */}
+                                    <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+                                        <h4 className="font-bold text-base sm:text-lg mb-4">🤖 AI生成：詳細解説</h4>
+                                        <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                                            <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
+                                            <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{mathCurrentProblem.answer}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                        <button
+                                            onClick={() => setShowSteps(false)}
+                                            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 active:bg-gray-800 touch-manipulation font-medium text-sm"
+                                        >
+                                            📋 問題に戻る
+                                        </button>
+                                        <button
+                                            onClick={() => getNextProblem()}
+                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium text-sm"
+                                        >
+                                            🔄 次の問題を{studySettings?.usePool ? '取得' : '生成'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
+                // 優先順位2: ローディング中
+                if (mathIsLoading) {
+                    console.log('🔍 デバッグ - ローディング画面表示中:', {
+                        mathIsLoading,
+                        studyMode,
+                        studySettings: studySettings?.usePool ? 'プール' : 'AI生成'
+                    });
+                    
+                    return (
+                        <div className="flex items-center justify-center min-h-64 p-4">
+                            <div className="text-center max-w-sm mx-auto">
+                                <div className="text-4xl sm:text-6xl mb-4 pulse-animation">
+                                    {studySettings?.usePool ? '📚' : '🤖'}
+                                </div>
+                                <div className="text-lg sm:text-xl font-bold text-blue-600 mb-2">
+                                    {studySettings?.usePool ? '問題プールから取得中' : 'AIが高品質な問題を生成中'}<span className="loading-dots"></span>
+                                </div>
+                                <div className="text-xs sm:text-sm text-gray-600 mb-4">
+                                    {studySettings?.usePool ? '問題プールから最適な問題を選択しています' : '体系数学に準拠した思考力問題を作成しています'}
+                                </div>
+                                <div className="w-48 sm:w-64 bg-gray-200 rounded-full h-2 mx-auto">
                                     <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{width: '75%'}}></div>
+                                </div>
+                                
+                                {/* 学習中は中断ボタンを表示 */}
+                                {studyMode === 'studying' && (
+                                    <button
+                                        onClick={backToSetup}
+                                        className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                                    >
+                                        ⏸️ 学習を中断
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+
+                // 優先順位3: 学習中で問題が読み込まれていない場合（待機状態）
+                if (studyMode === 'studying' && !mathCurrentProblem && !mathIsLoading) {
+                    console.log('🔍 デバッグ - 問題待機状態:', {
+                        studyMode,
+                        mathCurrentProblem: !!mathCurrentProblem,
+                        mathIsLoading,
+                        studySettings
+                    });
+                    
+                    return (
+                        <div className="flex items-center justify-center min-h-64 p-4">
+                            <div className="text-center max-w-sm mx-auto">
+                                <div className="text-4xl sm:text-6xl mb-4">
+                                    ⏳
+                                </div>
+                                <div className="text-lg sm:text-xl font-bold text-blue-600 mb-2">
+                                    問題を準備中<span className="loading-dots"></span>
+                                </div>
+                                <div className="text-xs sm:text-sm text-gray-600 mb-4">
+                                    設定に基づいて問題を取得しています
+                                </div>
+                                <div className="mt-2 text-xs text-gray-500">
+                                    デバッグ: studyMode={studyMode}, mathCurrentProblem={mathCurrentProblem ? 'あり' : 'なし'}, loading={mathIsLoading ? 'true' : 'false'}
+                                </div>
+                                <button
+                                    onClick={backToSetup}
+                                    className="mt-4 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+                                >
+                                    ⚙️ 設定に戻る
+                                </button>
+                                <button
+                                    onClick={() => getNextProblem()}
+                                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                                >
+                                    🔄 問題取得を再試行
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+
+                // 学習中で問題がロードされている場合（問題表示）
+                if (studyMode === 'studying' && mathCurrentProblem) {
+                    return (
+                        <div className="space-y-4 sm:space-y-6">
+                            {/* 学習セッション情報 */}
+                            {studySettings && (
+                                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <div>
+                                            <h2 className="text-lg font-bold">🎯 学習セッション中</h2>
+                                            <p className="text-sm opacity-90">
+                                                {studySettings.grade} | {studySettings.unit} | {studySettings.level}レベル
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-center">
+                                                <div className="text-xl font-bold">{problemCount - 1}</div>
+                                                <div className="text-xs opacity-80">問題目</div>
+                                            </div>
+                                            <button
+                                                onClick={backToSetup}
+                                                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm font-medium transition-all"
+                                            >
+                                                ⚙️ 設定変更
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* レスポンシブな問題表示 */}
+                            <div className="bg-blue-50 p-4 sm:p-6 rounded-lg">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
+                                    <h3 className="text-lg sm:text-xl font-bold text-blue-900">
+                                        {mathCurrentProblem.source === 'pool' ? '📚' : '🤖'} {mathCurrentProblem.source === 'pool' ? 'プール問題' : 'AI生成問題'} - {mathCurrentProblem.grade} {mathCurrentProblem.unit}
+                                    </h3>
+                                    <span className={`self-start sm:self-auto px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+                                        mathCurrentProblem.level === '基礎' ? 'bg-green-200 text-green-800' :
+                                        mathCurrentProblem.level === '標準' ? 'bg-blue-200 text-blue-800' :
+                                        mathCurrentProblem.level === '応用' ? 'bg-orange-200 text-orange-800' :
+                                        'bg-red-200 text-red-800'
+                                    }`}>
+                                        {mathCurrentProblem.level}レベル
+                                    </span>
+                                </div>
+                                
+                                <div className="bg-white p-4 sm:p-6 rounded border-l-4 border-blue-500">
+                                    <p className="text-base sm:text-lg font-medium mb-4 whitespace-pre-wrap leading-relaxed">{mathCurrentProblem.problem}</p>
+                                    {mathCurrentProblem.hint && (
+                                        <div className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
+                                            <p className="text-sm text-yellow-800">
+                                                💡 <strong>ヒント:</strong> {mathCurrentProblem.hint}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {!showSteps ? (
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                    <button
+                                        onClick={() => setShowSteps(true)}
+                                        className="bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 touch-manipulation font-medium"
+                                    >
+                                        🧠 <span className="sm:hidden">解説を見る</span><span className="hidden sm:inline">AI詳細解説を見る</span>
+                                    </button>
+                                    <button
+                                        onClick={() => getNextProblem()}
+                                        className="bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium"
+                                    >
+                                        🔄 <span className="sm:hidden">次の問題</span><span className="hidden sm:inline">次の問題を{studySettings?.usePool ? '取得' : '生成'}</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* レスポンシブなステップ解説 */}
+                                    <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+                                        <h4 className="font-bold text-base sm:text-lg mb-4">🤖 AI生成：詳細解説（{mathCurrentProblem.steps.length}段階）</h4>
+                                        
+                                        {/* レスポンシブなステップ選択 */}
+                                        <div className="grid grid-cols-2 sm:flex gap-2 mb-4 sm:mb-6">
+                                            {mathCurrentProblem.steps.map((step, idx) => {
+                                                const stepLabels = [
+                                                    '理解', '方針', '準備', '計算', '推論', '検算', 'まとめ'
+                                                ];
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => setCurrentStep(idx)}
+                                                        className={`px-2 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-all touch-manipulation ${
+                                                            currentStep === idx 
+                                                                ? 'bg-blue-600 text-white shadow-md' 
+                                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400'
+                                                        }`}
+                                                        title={step.step}
+                                                    >
+                                                        <span className="sm:hidden">{idx + 1}</span>
+                                                        <span className="hidden sm:inline">{idx + 1}. {stepLabels[idx] || `ステップ${idx + 1}`}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        <div className="bg-white p-4 sm:p-6 rounded border step-animation">
+                                            <h5 className="font-bold text-blue-900 mb-3 text-base sm:text-lg">
+                                                {currentStep + 1}. {mathCurrentProblem.steps[currentStep].step}
+                                            </h5>
+                                            
+                                            <div className="space-y-3 sm:space-y-4">
+                                                <div>
+                                                    <h6 className="font-semibold text-gray-800 mb-2 text-sm">📝 内容</h6>
+                                                    <p className="text-gray-800 bg-gray-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                                        {mathCurrentProblem.steps[currentStep].content}
+                                                    </p>
+                                                </div>
+                                                
+                                                <div>
+                                                    <h6 className="font-semibold text-gray-800 mb-2 text-sm">💡 解説</h6>
+                                                    <p className="text-yellow-800 bg-yellow-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                                        {mathCurrentProblem.steps[currentStep].explanation}
+                                                    </p>
+                                                </div>
+                                                
+                                                {mathCurrentProblem.steps[currentStep].detail && (
+                                                    <div>
+                                                        <h6 className="font-semibold text-gray-800 mb-2 text-sm">🔍 詳細</h6>
+                                                        <p className="text-blue-800 bg-blue-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                                            {mathCurrentProblem.steps[currentStep].detail}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* レスポンシブなナビゲーション */}
+                                        <div className="flex gap-2 mt-4 sm:mt-6">
+                                            <button
+                                                onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                                                disabled={currentStep === 0}
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
+                                            >
+                                                ⬅️ <span className="sm:hidden">前</span><span className="hidden sm:inline">前のステップ</span>
+                                            </button>
+                                            <button
+                                                onClick={() => setCurrentStep(Math.min(mathCurrentProblem.steps.length - 1, currentStep + 1))}
+                                                disabled={currentStep === mathCurrentProblem.steps.length - 1}
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
+                                            >
+                                                <span className="sm:hidden">次</span><span className="hidden sm:inline">次のステップ</span> ➡️
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* レスポンシブな解答と分析 */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                        <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                                            <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
+                                            <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{mathCurrentProblem.answer}</p>
+                                        </div>
+                                        
+                                        {mathCurrentProblem.learning_point && (
+                                            <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
+                                                <h4 className="font-bold text-purple-900 mb-2 text-sm sm:text-base">📚 学習ポイント</h4>
+                                                <p className="text-purple-800 text-xs sm:text-sm leading-relaxed">{mathCurrentProblem.learning_point}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                        <button
+                                            onClick={() => {
+                                                setShowSteps(false);
+                                                setCurrentStep(0);
+                                            }}
+                                            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 active:bg-gray-800 touch-manipulation font-medium text-sm"
+                                        >
+                                            📋 問題に戻る
+                                        </button>
+                                        <button
+                                            onClick={() => getNextProblem()}
+                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium text-sm"
+                                        >
+                                            🔄 次の問題を{studySettings?.usePool ? '取得' : '生成'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                }
+
+                // 学習中で問題がない場合（エラー対処）
+                if (studyMode === 'studying' && !mathCurrentProblem) {
+                    return (
+                        <div className="space-y-4">
+                            {/* 学習セッション情報 */}
+                            {studySettings && (
+                                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <div>
+                                            <h2 className="text-lg font-bold">🎯 学習セッション中</h2>
+                                            <p className="text-sm opacity-90">
+                                                {studySettings.grade} | {studySettings.unit} | {studySettings.level}レベル
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-center">
+                                                <div className="text-xl font-bold">{problemCount - 1}</div>
+                                                <div className="text-xs opacity-80">問題目</div>
+                                            </div>
+                                            <button
+                                                onClick={backToSetup}
+                                                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm font-medium transition-all"
+                                            >
+                                                ⚙️ 設定変更
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
+                                <h3 className="font-bold text-yellow-800 mb-2">⚠️ 問題取得エラー</h3>
+                                <p className="text-yellow-700 mb-4">問題の取得に失敗しました。再試行するか設定を変更してください。</p>
+                                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                                    <button
+                                        onClick={() => getNextProblem()}
+                                        className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                                    >
+                                        🔄 再試行
+                                    </button>
+                                    <button
+                                        onClick={backToSetup}
+                                        className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                                    >
+                                        ⚙️ 設定を変更
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     );
                 }
 
-                if (!currentProblem) {
+                // 設定モード表示（デフォルト）
+                if (studyMode === 'setup' || (!mathCurrentProblem && !mathIsLoading && studyMode === 'studying')) {
                     return (
                         <div className="space-y-6">
-                            {/* AI設定パネル */}
-                            <div className="bg-white p-6 rounded-lg shadow border">
-                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    🤖 AI問題生成設定
+                            {/* 学習設定ヘッダー */}
+                            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 sm:p-6 rounded-lg">
+                                <h2 className="text-xl sm:text-2xl font-bold mb-2">🎯 学習設定</h2>
+                                <p className="text-sm sm:text-base opacity-90">学年・分野・難易度を選択して学習を開始しましょう</p>
+                            </div>
+
+                            {/* 問題取得方法選択 */}
+                            <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
+                                <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-lg">
+                                    📚 問題取得方法
                                 </h4>
-                                <div className="grid md:grid-cols-3 gap-4 mb-4">
+                                
+                                {/* レスポンシブな切り替えボタン */}
+                                <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                                    <button
+                                        onClick={() => setUsePool(true)}
+                                        className={`flex-1 p-3 rounded-lg text-sm font-medium transition-all ${
+                                            usePool 
+                                                ? 'bg-blue-600 text-white shadow-md' 
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        📚 問題プールから取得 
+                                        {problemPoolStats && (
+                                            <span className="block text-xs mt-1 opacity-80">
+                                                {problemPoolStats.total_problems}問題利用可能
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setUsePool(false)}
+                                        className={`flex-1 p-3 rounded-lg text-sm font-medium transition-all ${
+                                            !usePool 
+                                                ? 'bg-green-600 text-white shadow-md' 
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        🤖 AI新規生成
+                                        <span className="block text-xs mt-1 opacity-80">
+                                            {apiStatus.connected ? '利用可能' : '接続エラー'}
+                                        </span>
+                                    </button>
+                                </div>
+
+                                {/* 問題プール統計情報 */}
+                                {usePool && problemPoolStats && (
+                                    <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                                        <h5 className="font-semibold text-blue-900 mb-2 text-sm">📊 プール統計</h5>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                            <div className="text-center">
+                                                <div className="font-bold text-blue-700">{problemPoolStats.total_problems}</div>
+                                                <div className="text-blue-600">総問題数</div>
+                                            </div>
+                                            {Object.entries(problemPoolStats.problems_by_level || {}).map(([level, count]) => (
+                                                <div key={level} className="text-center">
+                                                    <div className="font-bold text-blue-700">{count}</div>
+                                                    <div className="text-blue-600">{level}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* レスポンシブな設定グリッド */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">学年</label>
                                         <select
                                             value={selectedGrade}
                                             onChange={(e) => setSelectedGrade(e.target.value)}
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
                                         >
                                             {gradeOptions.map(grade => (
                                                 <option key={grade} value={grade}>{grade}</option>
@@ -376,7 +1628,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                         <select
                                             value={selectedUnit}
                                             onChange={(e) => setSelectedUnit(e.target.value)}
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
                                         >
                                             {unitsByGrade[selectedGrade].map(unit => (
                                                 <option key={unit} value={unit}>{unit}</option>
@@ -389,49 +1641,77 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                         <select
                                             value={selectedLevel}
                                             onChange={(e) => setSelectedLevel(e.target.value)}
-                                            className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                            className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
                                         >
                                             {levelOptions.map(level => (
                                                 <option key={level.value} value={level.value}>
-                                                    {level.value} - {level.description}
+                                                    <span className="sm:hidden">{level.value}</span>
+                                                    <span className="hidden sm:inline">{level.value} - {level.description}</span>
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className={`w-3 h-3 rounded-full ${apiStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                    <span className="text-sm text-gray-600">
-                                        AI状態: {apiStatus.checking ? 'チェック中...' : (apiStatus.connected ? '接続済み' : '接続エラー')}
-                                    </span>
+                                {/* ステータス表示 */}
+                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                    <div className="flex items-center gap-1">
+                                        <div className={`w-2 h-2 rounded-full ${apiStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                        <span className="text-gray-600">
+                                            AI: {apiStatus.checking ? '...' : (apiStatus.connected ? 'OK' : 'NG')}
+                                        </span>
+                                    </div>
+                                    {problemPoolStats && (
+                                        <div className="flex items-center gap-1">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                            <span className="text-gray-600">
+                                                プール: {problemPoolStats.total_problems}問題
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="text-center bg-gradient-to-r from-blue-50 to-purple-50 p-8 rounded-lg">
-                                <div className="text-6xl mb-4">🤖</div>
-                                <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                                    AI問題生成システム
+                            {/* レスポンシブな問題取得セクション */}
+                            <div className="text-center bg-gradient-to-r from-blue-50 to-purple-50 p-4 sm:p-8 rounded-lg">
+                                <div className="text-4xl sm:text-6xl mb-4">
+                                    {usePool ? '📚' : '🤖'}
+                                </div>
+                                <h3 className="text-lg sm:text-2xl font-bold text-gray-800 mb-2 sm:mb-4">
+                                    {usePool ? '問題プールシステム' : 'AI問題生成システム'}
                                 </h3>
-                                <p className="text-gray-600 mb-6">
+                                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
                                     設定: {selectedGrade} | {selectedUnit} | {selectedLevel}レベル
                                 </p>
+                                
+                                {/* 学習開始ボタン */}
                                 <button
-                                    onClick={() => generateMathProblem(selectedGrade, selectedUnit, selectedLevel)}
-                                    disabled={!apiStatus.connected}
-                                    className={`px-8 py-4 rounded-lg text-lg font-medium transition-all transform hover:scale-105 ${
-                                        apiStatus.connected 
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                    onClick={startStudySession}
+                                    disabled={!usePool && !apiStatus.connected}
+                                    className={`w-full px-8 py-4 rounded-lg text-lg font-bold transition-all transform hover:scale-105 active:scale-95 touch-manipulation ${
+                                        (usePool || (!usePool && apiStatus.connected))
+                                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg' 
                                             : 'bg-gray-400 text-gray-600 cursor-not-allowed'
                                     }`}
                                 >
-                                    {apiStatus.connected ? '🚀 AI問題生成開始' : '❌ AI接続が必要です'}
+                                    🚀 学習開始
+                                    <span className="block text-sm font-normal mt-1 opacity-80">
+                                        {usePool ? `📚 プールから継続出題` : `🤖 AI新規生成で継続出題`}
+                                    </span>
                                 </button>
-                                <p className="text-sm text-gray-500 mt-4">
-                                    {apiStatus.connected 
-                                        ? '約3-5秒で高品質な問題と詳細解説を生成します'
-                                        : 'サーバーのAPIキー設定を確認してください'
-                                    }
+                                
+                                <p className="text-xs sm:text-sm text-gray-500 mt-3 sm:mt-4">
+                                    {usePool ? (
+                                        problemPoolStats ? (
+                                            `${problemPoolStats.total_problems}問題から即座に取得します`
+                                        ) : (
+                                            '問題プールから瞬時に問題を取得'
+                                        )
+                                    ) : (
+                                        apiStatus.connected 
+                                            ? '約3-5秒で高品質な問題と詳細解説を生成'
+                                            : 'サーバーのAPIキー設定を確認してください'
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -439,14 +1719,40 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 }
 
                 return (
-                    <div className="space-y-6">
-                        {/* 問題表示 */}
-                        <div className="bg-blue-50 p-6 rounded-lg">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-xl font-bold text-blue-900">
-                                    🤖 AI生成問題 - {currentProblem.grade} {currentProblem.unit}
+                    <div className="space-y-4 sm:space-y-6">
+                        {/* 学習セッション情報 */}
+                        {studySettings && (
+                            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                    <div>
+                                        <h2 className="text-lg font-bold">🎯 学習セッション中</h2>
+                                        <p className="text-sm opacity-90">
+                                            {studySettings.grade} | {studySettings.unit} | {studySettings.level}レベル
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-center">
+                                            <div className="text-xl font-bold">{problemCount - 1}</div>
+                                            <div className="text-xs opacity-80">問題目</div>
+                                        </div>
+                                        <button
+                                            onClick={backToSetup}
+                                            className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm font-medium transition-all"
+                                        >
+                                            ⚙️ 設定変更
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* レスポンシブな問題表示 */}
+                        <div className="bg-blue-50 p-4 sm:p-6 rounded-lg">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
+                                <h3 className="text-lg sm:text-xl font-bold text-blue-900">
+                                    {currentProblem.source === 'pool' ? '📚' : '🤖'} {currentProblem.source === 'pool' ? 'プール問題' : 'AI生成問題'} - {currentProblem.grade} {currentProblem.unit}
                                 </h3>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                <span className={`self-start sm:self-auto px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                                     currentProblem.level === '基礎' ? 'bg-green-200 text-green-800' :
                                     currentProblem.level === '標準' ? 'bg-blue-200 text-blue-800' :
                                     currentProblem.level === '応用' ? 'bg-orange-200 text-orange-800' :
@@ -456,8 +1762,8 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                 </span>
                             </div>
                             
-                            <div className="bg-white p-6 rounded border-l-4 border-blue-500">
-                                <p className="text-lg font-medium mb-4">{currentProblem.problem}</p>
+                            <div className="bg-white p-4 sm:p-6 rounded border-l-4 border-blue-500">
+                                <p className="text-base sm:text-lg font-medium mb-4 whitespace-pre-wrap leading-relaxed">{currentProblem.problem}</p>
                                 {currentProblem.hint && (
                                     <div className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
                                         <p className="text-sm text-yellow-800">
@@ -469,66 +1775,74 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         </div>
 
                         {!showSteps ? (
-                            <div className="flex gap-4">
+                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                                 <button
                                     onClick={() => setShowSteps(true)}
-                                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                                    className="bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 touch-manipulation font-medium"
                                 >
-                                    🧠 AI詳細解説を見る
+                                    🧠 <span className="sm:hidden">解説を見る</span><span className="hidden sm:inline">AI詳細解説を見る</span>
                                 </button>
                                 <button
-                                    onClick={() => generateMathProblem(selectedGrade, selectedUnit, selectedLevel)}
-                                    className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700"
+                                    onClick={() => getNextProblem()}
+                                    className="bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium"
                                 >
-                                    🔄 新しい問題を生成
+                                    🔄 <span className="sm:hidden">次の問題</span><span className="hidden sm:inline">次の問題を{studySettings?.usePool ? '取得' : '生成'}</span>
                                 </button>
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {/* 6段階ステップ解説 */}
-                                <div className="bg-gray-50 p-6 rounded-lg">
-                                    <h4 className="font-bold text-lg mb-4">🤖 AI生成：6段階詳細解説</h4>
+                                {/* レスポンシブなステップ解説 */}
+                                <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+                                    <h4 className="font-bold text-base sm:text-lg mb-4">🤖 AI生成：詳細解説（{currentProblem.steps.length}段階）</h4>
                                     
-                                    <div className="flex gap-2 mb-6 flex-wrap">
-                                        {currentProblem.steps.map((_, idx) => (
-                                            <button
-                                                key={idx}
-                                                onClick={() => setCurrentStep(idx)}
-                                                className={`px-4 py-2 rounded text-sm font-medium transition-all ${
-                                                    currentStep === idx 
-                                                        ? 'bg-blue-600 text-white shadow-md' 
-                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                                }`}
-                                            >
-                                                {idx + 1}. {currentProblem.steps[idx].step}
-                                            </button>
-                                        ))}
+                                    {/* レスポンシブなステップ選択 */}
+                                    <div className="grid grid-cols-2 sm:flex gap-2 mb-4 sm:mb-6">
+                                        {currentProblem.steps.map((step, idx) => {
+                                            const stepLabels = [
+                                                '理解', '方針', '準備', '計算', '推論', '検算', 'まとめ'
+                                            ];
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => setCurrentStep(idx)}
+                                                    className={`px-2 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-all touch-manipulation ${
+                                                        currentStep === idx 
+                                                            ? 'bg-blue-600 text-white shadow-md' 
+                                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400'
+                                                    }`}
+                                                    title={step.step}
+                                                >
+                                                    <span className="sm:hidden">{idx + 1}</span>
+                                                    <span className="hidden sm:inline">{idx + 1}. {stepLabels[idx] || `ステップ${idx + 1}`}</span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                     
-                                    <div className="bg-white p-6 rounded border step-animation">
-                                        <h5 className="font-bold text-blue-900 mb-3 text-lg">
+                                    <div className="bg-white p-4 sm:p-6 rounded border step-animation">
+                                        <h5 className="font-bold text-blue-900 mb-3 text-base sm:text-lg">
                                             {currentStep + 1}. {currentProblem.steps[currentStep].step}
                                         </h5>
                                         
-                                        <div className="space-y-4">
+                                        <div className="space-y-3 sm:space-y-4">
                                             <div>
-                                                <h6 className="font-semibold text-gray-800 mb-2">📝 内容</h6>
-                                                <p className="text-gray-800 bg-gray-50 p-3 rounded">
+                                                <h6 className="font-semibold text-gray-800 mb-2 text-sm">📝 内容</h6>
+                                                <p className="text-gray-800 bg-gray-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
                                                     {currentProblem.steps[currentStep].content}
                                                 </p>
                                             </div>
                                             
                                             <div>
-                                                <h6 className="font-semibold text-gray-800 mb-2">💡 解説</h6>
-                                                <p className="text-yellow-800 bg-yellow-50 p-3 rounded">
+                                                <h6 className="font-semibold text-gray-800 mb-2 text-sm">💡 解説</h6>
+                                                <p className="text-yellow-800 bg-yellow-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
                                                     {currentProblem.steps[currentStep].explanation}
                                                 </p>
                                             </div>
                                             
                                             {currentProblem.steps[currentStep].detail && (
                                                 <div>
-                                                    <h6 className="font-semibold text-gray-800 mb-2">🔍 詳細</h6>
-                                                    <p className="text-blue-800 bg-blue-50 p-3 rounded">
+                                                    <h6 className="font-semibold text-gray-800 mb-2 text-sm">🔍 詳細</h6>
+                                                    <p className="text-blue-800 bg-blue-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
                                                         {currentProblem.steps[currentStep].detail}
                                                     </p>
                                                 </div>
@@ -536,54 +1850,55 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-2 mt-6">
+                                    {/* レスポンシブなナビゲーション */}
+                                    <div className="flex gap-2 mt-4 sm:mt-6">
                                         <button
                                             onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
                                             disabled={currentStep === 0}
-                                            className="px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50"
+                                            className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
                                         >
-                                            ⬅️ 前のステップ
+                                            ⬅️ <span className="sm:hidden">前</span><span className="hidden sm:inline">前のステップ</span>
                                         </button>
                                         <button
                                             onClick={() => setCurrentStep(Math.min(currentProblem.steps.length - 1, currentStep + 1))}
                                             disabled={currentStep === currentProblem.steps.length - 1}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                                            className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
                                         >
-                                            次のステップ ➡️
+                                            <span className="sm:hidden">次</span><span className="hidden sm:inline">次のステップ</span> ➡️
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* 解答と分析 */}
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div className="bg-green-50 p-4 rounded-lg">
-                                        <h4 className="font-bold text-green-900 mb-2">✅ 解答</h4>
-                                        <p className="text-green-800 text-lg font-medium">{currentProblem.answer}</p>
+                                {/* レスポンシブな解答と分析 */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                                        <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
+                                        <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{currentProblem.answer}</p>
                                     </div>
                                     
                                     {currentProblem.learning_point && (
-                                        <div className="bg-purple-50 p-4 rounded-lg">
-                                            <h4 className="font-bold text-purple-900 mb-2">📚 学習ポイント</h4>
-                                            <p className="text-purple-800 text-sm">{currentProblem.learning_point}</p>
+                                        <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
+                                            <h4 className="font-bold text-purple-900 mb-2 text-sm sm:text-base">📚 学習ポイント</h4>
+                                            <p className="text-purple-800 text-xs sm:text-sm leading-relaxed">{currentProblem.learning_point}</p>
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="flex gap-4">
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                                     <button
                                         onClick={() => {
                                             setShowSteps(false);
                                             setCurrentStep(0);
                                         }}
-                                        className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                                        className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 active:bg-gray-800 touch-manipulation font-medium text-sm"
                                     >
                                         📋 問題に戻る
                                     </button>
                                     <button
-                                        onClick={() => generateMathProblem(selectedGrade, selectedUnit, selectedLevel)}
-                                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                        onClick={() => getNextProblem()}
+                                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium text-sm"
                                     >
-                                        🔄 新しい問題を生成
+                                        🔄 次の問題を{studySettings?.usePool ? '取得' : '生成'}
                                     </button>
                                 </div>
                             </div>
@@ -592,171 +1907,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 );
             };
 
-            if (currentSection === 'menu') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
-                        <div className="max-w-4xl mx-auto">
-                            <div className="text-center mb-8">
-                                <div className="text-6xl mb-4">🤖</div>
-                                <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                                    カリタス中学校 AI学習ツール
-                                </h1>
-                                <h2 className="text-xl font-semibold text-purple-700 mb-2">
-                                    完全AI搭載版
-                                </h2>
-                                <p className="text-gray-600">体系数学・Progress 21準拠 + 本格AI問題生成</p>
-                                <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm">
-                                    <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full">
-                                        🤖 OpenAI
-                                    </span>
-                                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                                        📝 詳細解説
-                                    </span>
-                                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full">
-                                        🎯 完全準拠
-                                    </span>
-                                </div>
-                            </div>
 
-                            {/* API状態表示 */}
-                            <div className="bg-white p-4 rounded-lg shadow mb-6">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${apiStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                        <span className="text-sm font-medium">
-                                            AI状態: {apiStatus.checking ? 'チェック中...' : (apiStatus.connected ? '接続済み' : '接続エラー')}
-                                            {apiStatus.browser && ` (${apiStatus.browser})`}
-                                        </span>
-                                    </div>
-                                    {apiStatus.version && (
-                                        <span className="text-xs text-gray-500">v{apiStatus.version}</span>
-                                    )}
-                                </div>
-                                {apiStatus.apiUrl && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                        接続URL: {apiStatus.apiUrl}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Safari接続エラー時の特別な案内 */}
-                            {!apiStatus.connected && apiStatus.browser === 'Safari' && (
-                                <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mb-6">
-                                    <div className="flex items-start gap-3">
-                                        <div className="text-orange-500 text-xl">⚠️</div>
-                                        <div>
-                                            <h4 className="font-bold text-orange-800 mb-2">Safari接続エラー</h4>
-                                            <p className="text-orange-700 text-sm mb-3">
-                                                Safari の厳格なセキュリティ設定により、localhost への接続が制限されています。
-                                            </p>
-                                            <div className="text-orange-700 text-sm space-y-2">
-                                                <p><strong>解決方法：</strong></p>
-                                                <ol className="list-decimal list-inside space-y-1 ml-4">
-                                                    <li>Safari &gt; 開発メニュー &gt; 「セキュリティで保護されていないリクエストを許可」を有効にする</li>
-                                                    <li>Chrome、Firefox、Edge など他のブラウザをご利用ください（推奨）</li>
-                                                </ol>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {/* 数学セクション */}
-                                <div 
-                                    onClick={() => {
-                                        setSelectedSubject('math');
-                                        setCurrentSection('study');
-                                    }}
-                                    className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-blue-500"
-                                >
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="bg-blue-100 p-3 rounded-lg text-3xl">🧮</div>
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-800">数学（完全AI版）</h2>
-                                            <p className="text-gray-600">体系数学準拠 + OpenAI問題生成</p>
-                                        </div>
-                                    </div>
-                                    <ul className="text-sm text-gray-700 space-y-1">
-                                        <li>• 🤖 <strong>OpenAI問題生成</strong>（思考力重視）</li>
-                                        <li>• 📝 <strong>6段階詳細解説</strong>（省略なし）</li>
-                                        <li>• 🎯 <strong>学年・分野・難易度</strong>完全対応</li>
-                                        <li>• 💡 <strong>ヒント・分析</strong>付きサポート</li>
-                                    </ul>
-                                    <div className="mt-4 text-sm text-blue-600">
-                                        解答済み: {mathProgress.solved} 問題
-                                    </div>
-                                </div>
-
-                                {/* 英単語セクション */}
-                                <div 
-                                    onClick={() => {
-                                        setSelectedSubject('english_word');
-                                        setCurrentSection('study');
-                                    }}
-                                    className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-green-500"
-                                >
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="bg-green-100 p-3 rounded-lg text-3xl">📚</div>
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-800">AI英単語学習</h2>
-                                            <p className="text-gray-600">Progress 21準拠 + 語源解説</p>
-                                        </div>
-                                    </div>
-                                    <ul className="text-sm text-gray-700 space-y-1">
-                                        <li>• 🧠 <strong>文脈で覚える</strong>例文自動生成</li>
-                                        <li>• 🗣️ <strong>発音・語源</strong>まで徹底解説</li>
-                                        <li>• 📈 <strong>レベル別</strong>に効率よく学習</li>
-                                        <li>• 🔄 <strong>忘却曲線</strong>に基づいた復習</li>
-                                    </ul>
-                                    <div className="mt-4 text-sm text-green-600">
-                                        学習済み: {englishProgress.words} 単語
-                                    </div>
-                                </div>
-                                
-                                {/* 英語問題セクション (Coming Soon) */}
-                                <div className="bg-gray-100 p-6 rounded-lg shadow-inner cursor-not-allowed border-l-4 border-gray-300 col-span-2">
-                                    <div className="flex items-center gap-4 mb-4 opacity-50">
-                                        <div className="bg-gray-200 p-3 rounded-lg text-3xl">📝</div>
-                                        <div>
-                                            <h2 className="text-xl font-bold text-gray-500">AI英語問題</h2>
-                                            <p className="text-gray-400">長文読解・文法（準備中）</p>
-                                        </div>
-                                    </div>
-                                     <div className="text-center mt-4">
-                                        <span className="bg-gray-300 text-gray-600 px-4 py-2 rounded-full">
-                                            Coming Soon
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white p-6 rounded-lg shadow-lg mt-8">
-                                <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">
-                                    🤖 OpenAI機能の特徴
-                                </h3>
-                                <div className="grid md:grid-cols-3 gap-4 text-sm">
-                                    <div className="bg-purple-50 p-4 rounded-lg text-center">
-                                        <div className="text-2xl mb-2">🧠</div>
-                                        <h4 className="font-bold text-purple-900 mb-1">高度な問題生成</h4>
-                                        <p className="text-purple-700">思考力を要する良質な問題</p>
-                                    </div>
-                                    <div className="bg-blue-50 p-4 rounded-lg text-center">
-                                        <div className="text-2xl mb-2">📖</div>
-                                        <h4 className="font-bold text-blue-900 mb-1">詳細ステップ解説</h4>
-                                        <p className="text-blue-700">理解が深まる段階的説明</p>
-                                    </div>
-                                    <div className="bg-green-50 p-4 rounded-lg text-center">
-                                        <div className="text-2xl mb-2">🎯</div>
-                                        <h4 className="font-bold text-green-900 mb-1">完全カスタマイズ</h4>
-                                        <p className="text-green-700">個人レベルに最適化</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
 
             // 英単語学習セクション
             const EnglishWordSection = () => {
@@ -807,7 +1958,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
 
                     } catch (error) {
                         console.error('AI英単語生成エラー:', error);
-                        alert(`英単語生成エラー: ${error.message}`);
+                        showAlert('英単語生成エラー', `AI英単語生成に失敗しました。\n\nエラー詳細:\n${error.message}\n\nAPI接続状況を確認してください。`);
                     } finally {
                         setIsLoading(false);
                     }
@@ -927,31 +2078,264 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 );
             };
 
-            if (currentSection === 'study') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
-                        <div className="max-w-4xl mx-auto">
-                            <div className="flex items-center gap-4 mb-6">
-                                <button
-                                    onClick={() => setCurrentSection('menu')}
-                                    className="bg-white p-3 rounded-lg shadow hover:shadow-md transition-all"
-                                >
-                                    ↩️
-                                </button>
-                                <h1 className="text-2xl font-bold text-gray-800">
-                                    {selectedSubject === 'math' ? '🤖 AI数学学習' : '📚 AI英単語学習'}
-                                </h1>
-                                <div className="text-sm text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
-                                    OpenAI版
+
+            // カスタム確認ダイアログを全体に統合
+            return (
+                <>
+                    {currentSection === 'menu' && (
+                        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-3 sm:p-4">
+                            <div className="max-w-4xl mx-auto">
+                                <div className="text-center mb-6 sm:mb-8">
+                                    <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🤖</div>
+                                    <h1 className="text-xl sm:text-3xl font-bold text-gray-800 mb-2">
+                                        カリタス中学校 AI学習ツール
+                                    </h1>
+                                    <h2 className="text-lg sm:text-xl font-semibold text-purple-700 mb-2">
+                                        完全AI搭載版
+                                    </h2>
+                                    <p className="text-sm sm:text-base text-gray-600">体系数学・Progress 21準拠 + 本格AI問題生成</p>
+                                    <div className="mt-3 sm:mt-4 flex flex-wrap justify-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                                        <span className="bg-purple-100 text-purple-800 px-2 sm:px-3 py-1 rounded-full">
+                                            🤖 OpenAI
+                                        </span>
+                                        <span className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full">
+                                            📝 詳細解説
+                                        </span>
+                                        <span className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full">
+                                            🎯 完全準拠
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* レスポンシブなAPI状態表示 */}
+                                <div className="bg-white p-3 sm:p-4 rounded-lg shadow mb-4 sm:mb-6">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 sm:w-3 h-2 sm:h-3 rounded-full ${apiStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                            <span className="text-xs sm:text-sm font-medium">
+                                                AI状態: {apiStatus.checking ? 'チェック中...' : (apiStatus.connected ? '接続済み' : '接続エラー')}
+                                                {apiStatus.browser && ` (${apiStatus.browser})`}
+                                            </span>
+                                        </div>
+                                        {apiStatus.version && (
+                                            <span className="text-xs text-gray-500">v{apiStatus.version}</span>
+                                        )}
+                                    </div>
+                                    {apiStatus.apiUrl && (
+                                        <div className="text-xs text-gray-500 mt-1 truncate">
+                                            接続URL: {apiStatus.apiUrl}
+                                        </div>
+                                    )}
+                                    {/* 問題プール統計も表示 */}
+                                    {problemPoolStats && (
+                                        <div className="text-xs text-blue-600 mt-1">
+                                            問題プール: {problemPoolStats.total_problems}問題利用可能
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Safari接続エラー時の特別な案内 */}
+                                {!apiStatus.connected && apiStatus.browser === 'Safari' && (
+                                    <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mb-6">
+                                        <div className="flex items-start gap-3">
+                                            <div className="text-orange-500 text-xl">⚠️</div>
+                                            <div>
+                                                <h4 className="font-bold text-orange-800 mb-2">Safari接続エラー</h4>
+                                                <p className="text-orange-700 text-sm mb-3">
+                                                    Safari の厳格なセキュリティ設定により、localhost への接続が制限されています。
+                                                </p>
+                                                <div className="text-orange-700 text-sm space-y-2">
+                                                    <p><strong>解決方法：</strong></p>
+                                                    <ol className="list-decimal list-inside space-y-1 ml-4">
+                                                        <li>Safari &gt; 開発メニュー &gt; 「セキュリティで保護されていないリクエストを許可」を有効にする</li>
+                                                        <li>Chrome、Firefox、Edge など他のブラウザをご利用ください（推奨）</li>
+                                                    </ol>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                                    {/* レスポンシブな数学セクション */}
+                                    <div 
+                                        onClick={() => {
+                                            setSelectedSubject('math');
+                                            setCurrentSection('study');
+                                        }}
+                                        className="bg-white p-4 sm:p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-blue-500 touch-manipulation active:scale-95"
+                                    >
+                                        <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                                            <div className="bg-blue-100 p-2 sm:p-3 rounded-lg text-2xl sm:text-3xl">🧮</div>
+                                            <div className="min-w-0 flex-1">
+                                                <h2 className="text-lg sm:text-xl font-bold text-gray-800">数学（AI + プール）</h2>
+                                                <p className="text-sm sm:text-base text-gray-600 truncate">体系数学準拠 + AI問題生成</p>
+                                            </div>
+                                        </div>
+                                        <ul className="text-xs sm:text-sm text-gray-700 space-y-1">
+                                            <li>• 🤖 <strong>AI問題生成</strong>（思考力重視）</li>
+                                            <li>• 📚 <strong>問題プール</strong>（即座に取得）</li>
+                                            <li>• 📝 <strong>詳細解説</strong>（段階的説明）</li>
+                                            <li>• 🎯 <strong>完全対応</strong>（学年・分野・難易度）</li>
+                                        </ul>
+                                        <div className="mt-3 sm:mt-4 flex items-center justify-between text-xs sm:text-sm">
+                                            <span className="text-blue-600">解答済み: {mathProgress.solved} 問題</span>
+                                            {problemPoolStats && (
+                                                <span className="text-green-600">プール: {problemPoolStats.total_problems}</span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* レスポンシブな英単語セクション */}
+                                    <div 
+                                        onClick={() => {
+                                            setSelectedSubject('english_word');
+                                            setCurrentSection('study');
+                                        }}
+                                        className="bg-white p-4 sm:p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-green-500 touch-manipulation active:scale-95"
+                                    >
+                                        <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                                            <div className="bg-green-100 p-2 sm:p-3 rounded-lg text-2xl sm:text-3xl">📚</div>
+                                            <div className="min-w-0 flex-1">
+                                                <h2 className="text-lg sm:text-xl font-bold text-gray-800">AI英単語学習</h2>
+                                                <p className="text-sm sm:text-base text-gray-600 truncate">Progress 21準拠 + 語源解説</p>
+                                            </div>
+                                        </div>
+                                        <ul className="text-xs sm:text-sm text-gray-700 space-y-1">
+                                            <li>• 🧠 <strong>文脈で覚える</strong>例文自動生成</li>
+                                            <li>• 🗣️ <strong>発音・語源</strong>まで徹底解説</li>
+                                            <li>• 📈 <strong>レベル別</strong>に効率よく学習</li>
+                                            <li>• 🔄 <strong>忘却曲線</strong>に基づいた復習</li>
+                                        </ul>
+                                        <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-green-600">
+                                            学習済み: {englishProgress.words} 単語
+                                        </div>
+                                    </div>
+
+                                    {/* 管理画面セクション */}
+                                    <div 
+                                        onClick={() => setCurrentSection('admin')}
+                                        className="bg-white p-4 sm:p-6 rounded-lg shadow-lg hover:shadow-xl transition-all cursor-pointer border-l-4 border-purple-500 touch-manipulation active:scale-95"
+                                    >
+                                        <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                                            <div className="bg-purple-100 p-2 sm:p-3 rounded-lg text-2xl sm:text-3xl">⚙️</div>
+                                            <div className="min-w-0 flex-1">
+                                                <h2 className="text-lg sm:text-xl font-bold text-gray-800">問題プール管理</h2>
+                                                <p className="text-sm sm:text-base text-gray-600 truncate">AI問題生成 → プール追加</p>
+                                            </div>
+                                        </div>
+                                        <ul className="text-xs sm:text-sm text-gray-700 space-y-1">
+                                            <li>• 🤖 <strong>AI問題を一括生成</strong>（1〜10問）</li>
+                                            <li>• 📚 <strong>プールに一括追加</strong>（データベース構築）</li>
+                                            <li>• 🎯 <strong>学年・分野・難易度</strong>を指定</li>
+                                            <li>• 📊 <strong>統計情報</strong>でプール状況確認</li>
+                                        </ul>
+                                        <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-purple-600">
+                                            管理者向け機能（問題データベース構築）
+                                        </div>
+                                    </div>
+                                    
+                                    {/* レスポンシブなComing Soonセクション */}
+                                    <div className="bg-gray-100 p-4 sm:p-6 rounded-lg shadow-inner cursor-not-allowed border-l-4 border-gray-300">
+                                        <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4 opacity-50">
+                                            <div className="bg-gray-200 p-2 sm:p-3 rounded-lg text-2xl sm:text-3xl">📝</div>
+                                            <div className="min-w-0 flex-1">
+                                                <h2 className="text-lg sm:text-xl font-bold text-gray-500">AI英語問題</h2>
+                                                <p className="text-sm sm:text-base text-gray-400 truncate">長文読解・文法（準備中）</p>
+                                            </div>
+                                        </div>
+                                         <div className="text-center mt-3 sm:mt-4">
+                                            <span className="bg-gray-300 text-gray-600 px-3 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm">
+                                                Coming Soon
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* レスポンシブな特徴説明セクション */}
+                                <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg mt-6 sm:mt-8">
+                                    <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 text-center">
+                                        🤖 AI学習ツールの特徴
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
+                                        <div className="bg-purple-50 p-3 sm:p-4 rounded-lg text-center">
+                                            <div className="text-xl sm:text-2xl mb-2">🧠</div>
+                                            <h4 className="font-bold text-purple-900 mb-1 text-sm">高度な問題生成</h4>
+                                            <p className="text-purple-700 text-xs sm:text-sm">思考力を要する良質な問題</p>
+                                        </div>
+                                        <div className="bg-blue-50 p-3 sm:p-4 rounded-lg text-center">
+                                            <div className="text-xl sm:text-2xl mb-2">📚</div>
+                                            <h4 className="font-bold text-blue-900 mb-1 text-sm">問題プール + AI</h4>
+                                            <p className="text-blue-700 text-xs sm:text-sm">即座に取得 + オーダーメイド</p>
+                                        </div>
+                                        <div className="bg-green-50 p-3 sm:p-4 rounded-lg text-center">
+                                            <div className="text-xl sm:text-2xl mb-2">🎯</div>
+                                            <h4 className="font-bold text-green-900 mb-1 text-sm">完全カスタマイズ</h4>
+                                            <p className="text-green-700 text-xs sm:text-sm">個人レベルに最適化</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-
-                            {selectedSubject === 'math' && <MathSection />}
-                            {selectedSubject === 'english_word' && <EnglishWordSection />}
                         </div>
-                    </div>
-                );
-            }
+                    )}
+                    
+                    {currentSection === 'admin' && (
+                        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-3 sm:p-4">
+                            <div className="max-w-6xl mx-auto">
+                                {/* レスポンシブなヘッダー */}
+                                <div className="flex items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+                                    <button
+                                        onClick={() => setCurrentSection('menu')}
+                                        className="bg-white p-2 sm:p-3 rounded-lg shadow hover:shadow-md transition-all touch-manipulation"
+                                    >
+                                        ↩️
+                                    </button>
+                                    <h1 className="text-lg sm:text-2xl font-bold text-gray-800 min-w-0 flex-1">
+                                        ⚙️ 問題プール管理画面
+                                    </h1>
+                                    <div className="text-xs sm:text-sm text-purple-600 bg-purple-100 px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">
+                                        管理者機能
+                                    </div>
+                                </div>
+
+                                <AdminSection />
+                            </div>
+                        </div>
+                    )}
+
+                    {currentSection === 'study' && (
+                        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-3 sm:p-4">
+                            <div className="max-w-4xl mx-auto">
+                                {/* レスポンシブなヘッダー */}
+                                <div className="flex items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+                                    <button
+                                        onClick={() => setCurrentSection('menu')}
+                                        className="bg-white p-2 sm:p-3 rounded-lg shadow hover:shadow-md transition-all touch-manipulation"
+                                    >
+                                        ↩️
+                                    </button>
+                                    <h1 className="text-lg sm:text-2xl font-bold text-gray-800 min-w-0 flex-1">
+                                        {selectedSubject === 'math' ? '🤖 AI数学学習' : '📚 AI英単語学習'}
+                                    </h1>
+                                    <div className="text-xs sm:text-sm text-purple-600 bg-purple-100 px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">
+                                        AI + プール
+                                    </div>
+                                </div>
+
+                                {selectedSubject === 'math' && <MathSection />}
+                                {selectedSubject === 'english_word' && <EnglishWordSection />}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* カスタム確認ダイアログ - 全セクションで共通 */}
+                    <ConfirmDialog 
+                        show={showConfirmDialog} 
+                        config={confirmConfig} 
+                        onClose={() => setShowConfirmDialog(false)} 
+                    />
+                </>
+            );
         };
 
         const container = document.getElementById('root');
