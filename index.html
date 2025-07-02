@@ -966,6 +966,16 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                     }
                 }, [mathCurrentProblem]); // studyModeを依存関係から除外
 
+                // showStepsの状態変化を監視
+                useEffect(() => {
+                    console.log('🔍 [showSteps状態] showSteps変化:', showSteps);
+                    if (showSteps) {
+                        console.log('🔍 [解説表示] 解説表示モードに変更されました');
+                        console.log('🔍 [問題確認] mathCurrentProblem:', mathCurrentProblem);
+                        console.log('🔍 [ステップ確認] steps:', mathCurrentProblem?.steps);
+                    }
+                }, [showSteps]);
+
 
                 const gradeOptions = ['中1', '中2', '中3', '高1'];
                 const unitsByGrade = {
@@ -1182,6 +1192,9 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 // 学習モードで問題がある場合：問題表示
                 if (studyMode === 'studying' && mathCurrentProblem && !mathIsLoading) {
                     console.log('✅ [修正] 問題表示画面をレンダリング');
+                    console.log('🔍 [レンダリング] showSteps:', showSteps);
+                    console.log('🔍 [レンダリング] mathCurrentProblem.steps:', mathCurrentProblem.steps);
+                    
                     return (
                         <div className="space-y-4 sm:space-y-6">
                             {/* 学習セッション情報 */}
@@ -1626,163 +1639,218 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                             </div>
                         )}
 
-                        {/* レスポンシブな問題表示 */}
+                        {/* 問題表示セクション（mathCurrentProblemを使用） */}
                         <div className="bg-blue-50 p-4 sm:p-6 rounded-lg">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
                                 <h3 className="text-lg sm:text-xl font-bold text-blue-900">
-                                    {currentProblem.source === 'pool' ? '📚' : '🤖'} {currentProblem.source === 'pool' ? 'プール問題' : 'AI生成問題'} - {currentProblem.grade} {currentProblem.unit}
+                                    {mathCurrentProblem.source === 'pool' ? '📚' : '🤖'} {mathCurrentProblem.source === 'pool' ? 'プール問題' : 'AI生成問題'} - {mathCurrentProblem.grade} {mathCurrentProblem.unit}
                                 </h3>
                                 <span className={`self-start sm:self-auto px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                                    currentProblem.level === '基礎' ? 'bg-green-200 text-green-800' :
-                                    currentProblem.level === '標準' ? 'bg-blue-200 text-blue-800' :
-                                    currentProblem.level === '応用' ? 'bg-orange-200 text-orange-800' :
+                                    mathCurrentProblem.level === '基礎' ? 'bg-green-200 text-green-800' :
+                                    mathCurrentProblem.level === '標準' ? 'bg-blue-200 text-blue-800' :
+                                    mathCurrentProblem.level === '応用' ? 'bg-orange-200 text-orange-800' :
                                     'bg-red-200 text-red-800'
                                 }`}>
-                                    {currentProblem.level}レベル
+                                    {mathCurrentProblem.level}レベル
                                 </span>
                             </div>
                             
                             <div className="bg-white p-4 sm:p-6 rounded border-l-4 border-blue-500">
-                                <p className="text-base sm:text-lg font-medium mb-4 whitespace-pre-wrap leading-relaxed">{currentProblem.problem}</p>
-                                {currentProblem.hint && (
+                                <p className="text-base sm:text-lg font-medium mb-4 whitespace-pre-wrap leading-relaxed">{mathCurrentProblem.problem}</p>
+                                {mathCurrentProblem.hint && (
                                     <div className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
                                         <p className="text-sm text-yellow-800">
-                                            💡 <strong>ヒント:</strong> {currentProblem.hint}
+                                            💡 <strong>ヒント:</strong> {mathCurrentProblem.hint}
                                         </p>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {!showSteps ? (
-                            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                                <button
-                                    onClick={() => setShowSteps(true)}
-                                    className="bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 touch-manipulation font-medium"
-                                >
-                                    🧠 <span className="sm:hidden">解説を見る</span><span className="hidden sm:inline">AI詳細解説を見る</span>
-                                </button>
-                                <button
-                                    onClick={() => getNextProblem()}
-                                    className="bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium"
-                                >
-                                    🔄 <span className="sm:hidden">次の問題</span><span className="hidden sm:inline">次の問題を{studySettings?.usePool ? '取得' : '生成'}</span>
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {/* レスポンシブなステップ解説 */}
-                                <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-                                    <h4 className="font-bold text-base sm:text-lg mb-4">🤖 AI生成：詳細解説（{currentProblem.steps.length}段階）</h4>
-                                    
-                                    {/* レスポンシブなステップ選択 */}
-                                    <div className="grid grid-cols-2 sm:flex gap-2 mb-4 sm:mb-6">
-                                        {currentProblem.steps.map((step, idx) => {
-                                            const stepLabels = [
-                                                '理解', '方針', '準備', '計算', '推論', '検算', 'まとめ'
-                                            ];
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => setCurrentStep(idx)}
-                                                    className={`px-2 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-all touch-manipulation ${
-                                                        currentStep === idx 
-                                                            ? 'bg-blue-600 text-white shadow-md' 
-                                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400'
-                                                    }`}
-                                                    title={step.step}
-                                                >
-                                                    <span className="sm:hidden">{idx + 1}</span>
-                                                    <span className="hidden sm:inline">{idx + 1}. {stepLabels[idx] || `ステップ${idx + 1}`}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    
-                                    <div className="bg-white p-4 sm:p-6 rounded border step-animation">
-                                        <h5 className="font-bold text-blue-900 mb-3 text-base sm:text-lg">
-                                            {currentStep + 1}. {currentProblem.steps[currentStep].step}
-                                        </h5>
-                                        
-                                        <div className="space-y-3 sm:space-y-4">
-                                            <div>
-                                                <h6 className="font-semibold text-gray-800 mb-2 text-sm">📝 内容</h6>
-                                                <p className="text-gray-800 bg-gray-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                                                    {currentProblem.steps[currentStep].content}
-                                                </p>
-                                            </div>
-                                            
-                                            <div>
-                                                <h6 className="font-semibold text-gray-800 mb-2 text-sm">💡 解説</h6>
-                                                <p className="text-yellow-800 bg-yellow-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                                                    {currentProblem.steps[currentStep].explanation}
-                                                </p>
-                                            </div>
-                                            
-                                            {currentProblem.steps[currentStep].detail && (
-                                                <div>
-                                                    <h6 className="font-semibold text-gray-800 mb-2 text-sm">🔍 詳細</h6>
-                                                    <p className="text-blue-800 bg-blue-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                                                        {currentProblem.steps[currentStep].detail}
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* レスポンシブなナビゲーション */}
-                                    <div className="flex gap-2 mt-4 sm:mt-6">
-                                        <button
-                                            onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-                                            disabled={currentStep === 0}
-                                            className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
-                                        >
-                                            ⬅️ <span className="sm:hidden">前</span><span className="hidden sm:inline">前のステップ</span>
-                                        </button>
-                                        <button
-                                            onClick={() => setCurrentStep(Math.min(currentProblem.steps.length - 1, currentStep + 1))}
-                                            disabled={currentStep === currentProblem.steps.length - 1}
-                                            className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
-                                        >
-                                            <span className="sm:hidden">次</span><span className="hidden sm:inline">次のステップ</span> ➡️
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* レスポンシブな解答と分析 */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
-                                        <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
-                                        <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{currentProblem.answer}</p>
-                                    </div>
-                                    
-                                    {currentProblem.learning_point && (
-                                        <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
-                                            <h4 className="font-bold text-purple-900 mb-2 text-sm sm:text-base">📚 学習ポイント</h4>
-                                            <p className="text-purple-800 text-xs sm:text-sm leading-relaxed">{currentProblem.learning_point}</p>
-                                        </div>
-                                    )}
-                                </div>
-
+                        <div>
+                            {console.log('🔍 [JSX条件] showSteps値:', showSteps)}
+                            {!showSteps ? (
                                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                                     <button
                                         onClick={() => {
-                                            setShowSteps(false);
-                                            setCurrentStep(0);
+                                            console.log('🔍 [解説ボタン] 解説ボタンがクリックされました');
+                                            console.log('🔍 [問題データ] mathCurrentProblem:', mathCurrentProblem);
+                                            console.log('🔍 [ステップ確認] steps存在:', !!mathCurrentProblem.steps);
+                                            console.log('🔍 [ステップ数] steps.length:', mathCurrentProblem.steps?.length);
+                                            if (mathCurrentProblem.steps) {
+                                                console.log('🔍 [ステップ内容] 最初のステップ:', mathCurrentProblem.steps[0]);
+                                            }
+                                            setShowSteps(true);
                                         }}
-                                        className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 active:bg-gray-800 touch-manipulation font-medium text-sm"
+                                        className="bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 touch-manipulation font-medium"
                                     >
-                                        📋 問題に戻る
+                                        🧠 <span className="sm:hidden">解説を見る</span><span className="hidden sm:inline">{mathCurrentProblem.steps && mathCurrentProblem.steps.length > 0 ? 'AI詳細解説を見る' : '解答を見る'}</span>
                                     </button>
                                     <button
                                         onClick={() => getNextProblem()}
-                                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium text-sm"
+                                        className="bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium"
                                     >
-                                        🔄 次の問題を{studySettings?.usePool ? '取得' : '生成'}
+                                        🔄 <span className="sm:hidden">次の問題</span><span className="hidden sm:inline">次の問題を{studySettings?.usePool ? '取得' : '生成'}</span>
                                     </button>
                                 </div>
-                            </div>
-                        )}
+                            ) : (
+                                <div className="space-y-4">
+                                    {console.log('🔍 [JSX] 解説表示ブランチを選択')}
+                                    {/* 統一された詳細解説画面 */}
+                                    <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
+                                        <h4 className="font-bold text-base sm:text-lg mb-4">
+                                            {mathCurrentProblem.source === 'pool' ? '📚 プール問題：' : '🤖 AI生成：'}詳細解説
+                                            {mathCurrentProblem.steps && mathCurrentProblem.steps.length > 0 && `（${mathCurrentProblem.steps.length}段階）`}
+                                        </h4>
+                                        
+                                        {mathCurrentProblem.steps && mathCurrentProblem.steps.length > 0 ? (
+                                            /* 詳細ステップ解説がある場合 */
+                                            <>
+                                                {/* レスポンシブなステップ選択 */}
+                                                <div className="grid grid-cols-2 sm:flex gap-2 mb-4 sm:mb-6">
+                                                    {mathCurrentProblem.steps.map((step, idx) => {
+                                                        const stepLabels = [
+                                                            '理解', '方針', '準備', '計算', '推論', '検算', 'まとめ'
+                                                        ];
+                                                        return (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={() => setCurrentStep(idx)}
+                                                                className={`px-2 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-all touch-manipulation ${
+                                                                    currentStep === idx
+                                                                        ? 'bg-blue-600 text-white shadow-md'
+                                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400'
+                                                                }`}
+                                                                title={step.step}
+                                                            >
+                                                                <span className="sm:hidden">{idx + 1}</span>
+                                                                <span className="hidden sm:inline">{idx + 1}. {stepLabels[idx] || `ステップ${idx + 1}`}</span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                
+                                                <div className="bg-white p-4 sm:p-6 rounded border step-animation">
+                                                    <h5 className="font-bold text-blue-900 mb-3 text-base sm:text-lg">
+                                                        {currentStep + 1}. {mathCurrentProblem.steps[currentStep].step}
+                                                    </h5>
+                                                    
+                                                    <div className="space-y-3 sm:space-y-4">
+                                                        <div>
+                                                            <h6 className="font-semibold text-gray-800 mb-2 text-sm">📝 内容</h6>
+                                                            <p className="text-gray-800 bg-gray-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                                                {mathCurrentProblem.steps[currentStep].content}
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        <div>
+                                                            <h6 className="font-semibold text-gray-800 mb-2 text-sm">💡 解説</h6>
+                                                            <p className="text-yellow-800 bg-yellow-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                                                {mathCurrentProblem.steps[currentStep].explanation}
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        {mathCurrentProblem.steps[currentStep].detail && (
+                                                            <div>
+                                                                <h6 className="font-semibold text-gray-800 mb-2 text-sm">🔍 詳細</h6>
+                                                                <p className="text-blue-800 bg-blue-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                                                    {mathCurrentProblem.steps[currentStep].detail}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* レスポンシブなナビゲーション */}
+                                                <div className="flex gap-2 mt-4 sm:mt-6">
+                                                    <button
+                                                        onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                                                        disabled={currentStep === 0}
+                                                        className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
+                                                    >
+                                                        ⬅️ <span className="sm:hidden">前</span><span className="hidden sm:inline">前のステップ</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setCurrentStep(Math.min(mathCurrentProblem.steps.length - 1, currentStep + 1))}
+                                                        disabled={currentStep === mathCurrentProblem.steps.length - 1}
+                                                        className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
+                                                    >
+                                                        <span className="sm:hidden">次</span><span className="hidden sm:inline">次のステップ</span> ➡️
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            /* 詳細解説データがない場合 */
+                                            <div className="bg-orange-50 border border-orange-200 p-4 sm:p-6 rounded-lg">
+                                                <div className="flex items-start gap-3 mb-4">
+                                                    <div className="text-orange-500 text-xl">⚠️</div>
+                                                    <div className="flex-1">
+                                                        <h5 className="font-bold text-orange-900 mb-2">詳細解説データなし</h5>
+                                                        <p className="text-orange-800 text-sm mb-3">
+                                                            この問題には段階的な詳細解説データが含まれていません。
+                                                            基本的な解答情報のみ表示します。
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* 基本的な解答情報 */}
+                                                <div className="bg-green-50 p-3 sm:p-4 rounded-lg mb-4">
+                                                    <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
+                                                    <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{mathCurrentProblem.answer}</p>
+                                                </div>
+                                                
+                                                {mathCurrentProblem.hint && (
+                                                    <div className="bg-yellow-50 p-3 sm:p-4 rounded-lg mb-4">
+                                                        <h4 className="font-bold text-yellow-900 mb-2 text-sm sm:text-base">💡 ヒント</h4>
+                                                        <p className="text-yellow-800 text-sm sm:text-base leading-relaxed">{mathCurrentProblem.hint}</p>
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="bg-blue-50 p-3 rounded text-sm text-blue-800">
+                                                    <p>💡 <strong>より詳細な解説が必要な場合は：</strong></p>
+                                                    <p>設定画面で「AI新規生成」モードに切り替えると、段階的な詳細解説付きの問題が生成されます。</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 解答と学習ポイント（AI生成問題のみ） */}
+                                    {mathCurrentProblem.steps && mathCurrentProblem.steps.length > 0 && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                            <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                                                <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
+                                                <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{mathCurrentProblem.answer}</p>
+                                            </div>
+                                            
+                                            {mathCurrentProblem.learning_point && (
+                                                <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
+                                                    <h4 className="font-bold text-purple-900 mb-2 text-sm sm:text-base">📚 学習ポイント</h4>
+                                                    <p className="text-purple-800 text-xs sm:text-sm leading-relaxed">{mathCurrentProblem.learning_point}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                                        <button
+                                            onClick={() => {
+                                                setShowSteps(false);
+                                                setCurrentStep(0);
+                                            }}
+                                            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 active:bg-gray-800 touch-manipulation font-medium text-sm"
+                                        >
+                                            📋 問題に戻る
+                                        </button>
+                                        <button
+                                            onClick={() => getNextProblem()}
+                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium text-sm"
+                                        >
+                                            🔄 次の問題を{studySettings?.usePool ? '取得' : '生成'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 );
             };
