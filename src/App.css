@@ -1,0 +1,84 @@
+/* アプリケーション固有のスタイル */
+
+.app-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #EBF8FF 0%, #F0FDF4 100%);
+}
+
+/* セクション遷移アニメーション */
+.section-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.section-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+}
+
+.section-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.section-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms ease-in-out, transform 300ms ease-in-out;
+}
+
+/* レスポンシブコンテナ */
+.responsive-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .responsive-container {
+    padding: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-container {
+    padding: 2rem;
+  }
+}
+
+/* デバッグモード表示 */
+.debug-panel {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  z-index: 9999;
+  max-width: 300px;
+}
+
+.debug-panel.hidden {
+  display: none;
+}
+
+/* パフォーマンス最適化 */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* 高解像度ディスプレイ対応 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .crisp-edges {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}

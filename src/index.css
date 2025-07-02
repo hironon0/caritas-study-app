@@ -1,0 +1,238 @@
+/* カリタス中学校AI学習ツール - メインスタイルシート */
+
+body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* ローディングアニメーション */
+.loading-dots:after {
+    content: '...';
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60% { content: '...'; }
+    80%, 100% { content: ''; }
+}
+
+/* ステップアニメーション */
+.step-animation {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* パルスアニメーション */
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* レスポンシブユーティリティ */
+.touch-manipulation {
+    touch-action: manipulation;
+}
+
+/* カスタムスクロールバー */
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #3B82F6 #F3F4F6;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #F3F4F6;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #3B82F6;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #2563EB;
+}
+
+/* グラデーション背景 */
+.gradient-bg-blue-green {
+    background: linear-gradient(135deg, #EBF8FF 0%, #F0FDF4 100%);
+}
+
+.gradient-bg-purple-blue {
+    background: linear-gradient(135deg, #F3E8FF 0%, #EBF8FF 100%);
+}
+
+/* カード効果 */
+.card-hover {
+    transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* ボタンエフェクト */
+.btn-scale {
+    transition: transform 0.2s ease;
+}
+
+.btn-scale:hover {
+    transform: scale(1.05);
+}
+
+.btn-scale:active {
+    transform: scale(0.95);
+}
+
+/* 状態インジケーター */
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.status-connected {
+    background-color: #10B981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.status-disconnected {
+    background-color: #EF4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.status-checking {
+    background-color: #F59E0B;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+    animation: pulse 1s infinite;
+}
+
+/* レベル別カラーリング */
+.level-basic {
+    background-color: #DCFCE7;
+    color: #166534;
+    border-color: #22C55E;
+}
+
+.level-standard {
+    background-color: #DBEAFE;
+    color: #1E40AF;
+    border-color: #3B82F6;
+}
+
+.level-advanced {
+    background-color: #FED7AA;
+    color: #C2410C;
+    border-color: #F97316;
+}
+
+.level-expert {
+    background-color: #FECACA;
+    color: #B91C1C;
+    border-color: #EF4444;
+}
+
+/* 数学式レンダリング */
+.math-expression {
+    font-family: 'Times New Roman', serif;
+    font-size: 1.1em;
+    line-height: 1.4;
+}
+
+/* 問題番号表示 */
+.problem-counter {
+    background: linear-gradient(45deg, #3B82F6, #8B5CF6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: bold;
+}
+
+/* モバイル最適化 */
+@media (max-width: 640px) {
+    .mobile-padding {
+        padding: 0.75rem;
+    }
+    
+    .mobile-text-sm {
+        font-size: 0.875rem;
+    }
+    
+    .mobile-hidden {
+        display: none;
+    }
+}
+
+/* 印刷時の最適化 */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    body {
+        background: white !important;
+    }
+    
+    .bg-gradient-to-r,
+    .bg-gradient-to-br {
+        background: white !important;
+        color: black !important;
+    }
+}
+
+/* アクセシビリティ */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* フォーカスリング */
+.focus-ring:focus {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+}
+
+/* エラー状態 */
+.error-shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* 成功状態 */
+.success-bounce {
+    animation: bounce 0.6s ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}

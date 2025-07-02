@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カリタス中学校 AI学習ツール - リファクタリング版</title>
+    
+    <!-- PWA用メタタグ -->
+    <meta name="description" content="カリタス中学校の体系数学・Progress 21準拠のAI学習ツール">
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="カリタスAI学習">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+<body>
+    <div id="root">
+        <!-- React アプリケーションがここにマウントされます -->
+        <div class="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center">
+            <div class="text-center p-8">
+                <div class="text-6xl mb-4">🤖</div>
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">カリタス中学校 AI学習ツール</h1>
+                <p class="text-gray-600 mb-4">リファクタリング版を読み込み中...</p>
+                <div class="w-64 bg-gray-200 rounded-full h-2 mx-auto">
+                    <div class="bg-blue-600 h-2 rounded-full animate-pulse" style="width: 75%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-4">
+                    新しいコンポーネント構造で最適化されたバージョンです
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 開発用のReact -->
+    <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- プロダクション用ビルドの場合は以下を使用 -->
+    <!-- <script type="module" src="/dist/assets/index.js"></script> -->
+</body>
+</html>
