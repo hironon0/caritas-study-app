@@ -81,6 +81,12 @@
             const [problemPoolStats, setProblemPoolStats] = useState(null);
             const [usePool, setUsePool] = useState(true); // デフォルトでプール使用
             
+            // MathSection用の状態を親レベルで管理
+            const [mathStudyMode, setMathStudyMode] = useState('setup');
+            const [mathStudySettings, setMathStudySettings] = useState(null);
+            const [mathCurrentProblem, setMathCurrentProblem] = useState(null);
+            const [mathIsLoading, setMathIsLoading] = useState(false);
+            
             // 管理画面用の状態
             const [adminMode, setAdminMode] = useState(false);
             const [generatedProblems, setGeneratedProblems] = useState([]);
@@ -378,14 +384,6 @@
                     
                     const data = await response.json();
                     if (data.success && data.problem) {
-                        setCurrentProblem(data.problem);
-                        
-                        // 進捗更新
-                        setMathProgress(prev => ({
-                            ...prev,
-                            solved: prev.solved + 1
-                        }));
-                        
                         console.log('✅ 問題プールから取得成功:', data.problem.id);
                         return data.problem;
                     }
@@ -511,14 +509,6 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                     }
 
                     const problemData = JSON.parse(data.result);
-                    setCurrentProblem(problemData);
-                    
-                    // 進捗更新
-                    setMathProgress(prev => ({
-                        ...prev,
-                        solved: prev.solved + 1
-                    }));
-
                     return problemData;
 
                 } catch (error) {
@@ -924,31 +914,57 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
             };
 
             // 数学学習セクション
-            const MathSection = () => {
+            const MathSection = ({
+                studyMode, setStudyMode, studySettings, setStudySettings,
+                mathCurrentProblem, setMathCurrentProblem, mathIsLoading, setMathIsLoading,
+                mathProgress, setMathProgress, apiStatus, problemPoolStats, showAlert,
+                getProblemFromPool, generateMathProblem
+            }) => {
                 const [selectedGrade, setSelectedGrade] = useState('中2');
                 const [selectedUnit, setSelectedUnit] = useState('全分野');
                 const [selectedLevel, setSelectedLevel] = useState('基礎');
                 const [showSteps, setShowSteps] = useState(false);
                 const [currentStep, setCurrentStep] = useState(0);
-                const [studyMode, setStudyMode] = useState('setup'); // 'setup' | 'studying'
-                const [studySettings, setStudySettings] = useState(null);
+                
                 const [problemCount, setProblemCount] = useState(1);
                 const [usePool, setUsePool] = useState(true); // デフォルトでプールを使用
-                const [mathCurrentProblem, setMathCurrentProblem] = useState(null); // MathSection専用の問題状態
-                const [mathIsLoading, setMathIsLoading] = useState(false); // MathSection専用のローディング状態
-                const [forceUpdate, setForceUpdate] = useState(0); // 強制更新用
+                
+                // studyModeの変化を詳細追跡
+                useEffect(() => {
+                    console.log('🔍 [状態追跡] studyMode変化:', studyMode, new Date().toISOString());
+                    console.log('🔍 [状態詳細] 現在の全状態:', {
+                        studyMode,
+                        mathCurrentProblem: !!mathCurrentProblem,
+                        mathIsLoading,
+                        studySettings: !!studySettings,
+                        problemCount
+                    });
+                    
+                    if (studyMode === 'studying') {
+                        console.log('✅ [重要] studyModeが"studying"に変化しました！');
+                    }
+                    
+                    if (studyMode === 'setup') {
+                        console.log('🔴 [重要] studyModeが"setup"に変化しました');
+                        if (mathCurrentProblem || studySettings) {
+                            console.log('⚠️ [異常] setupに戻ったが問題データが残存:', {
+                                mathCurrentProblem: !!mathCurrentProblem,
+                                studySettings: !!studySettings
+                            });
+                        }
+                    }
+                }, [studyMode]);
 
-                // 問題状態の変化を監視して強制更新
+                // 問題状態の変化を監視（依存関係を制限）
                 useEffect(() => {
                     if (mathCurrentProblem && studyMode === 'studying') {
-                        console.log('🔄 useEffect - 問題表示トリガー:', {
+                        console.log('🔄 useEffect - 問題表示確認:', {
                             mathCurrentProblem: !!mathCurrentProblem,
                             studyMode,
                             problemId: mathCurrentProblem.id
                         });
-                        setForceUpdate(prev => prev + 1);
                     }
-                }, [mathCurrentProblem, studyMode]);
+                }, [mathCurrentProblem]); // studyModeを依存関係から除外
 
 
                 const gradeOptions = ['中1', '中2', '中3', '高1'];
@@ -967,7 +983,17 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
 
                 // 学習開始関数
                 const startStudySession = async () => {
-                    console.log('🚀🚀🚀 [診断] 学習開始ボタンがクリックされました');
+                    // 呼び出し元を特定
+                    console.log('🚀🚀🚀 [診断] startStudySession関数が呼ばれました');
+                    console.log('🔍 [呼び出し元] スタックトレース:', new Error().stack);
+                    
+                    // 重複実行防止
+                    if (mathIsLoading || studyMode === 'studying') {
+                        console.log('⚠️ [重複防止] 学習開始処理が既に実行中、スキップします');
+                        return;
+                    }
+                    
+                    console.log('🚀🚀🚀 [診断] 学習開始処理を実行します');
                     console.log('🔍 [診断] 現在の状態詳細:', {
                         selectedGrade,
                         selectedUnit,
@@ -979,9 +1005,6 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         currentMathProblem: mathCurrentProblem,
                         currentLoading: mathIsLoading
                     });
-                    
-                    // 診断: クリック検出テスト
-                    alert('🔍 [診断] 学習開始ボタンがクリックされました！この画面が表示されれば、ボタンは動作しています。');
                     
                     const settings = {
                         grade: selectedGrade,
@@ -1016,9 +1039,12 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         
                         console.log('🔄 [診断] 全ての状態更新完了 - studyMode: studying');
                         
-                        // React状態更新の完了を待つ
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        // React状態更新の完了を確実に待つ
+                        await new Promise(resolve => setTimeout(resolve, 200));
                         console.log('⏱️ [診断] 状態更新待機完了');
+                        
+                        // studyModeが正しく設定されているか確認
+                        console.log('🔍 [確認] 状態更新後のstudyMode確認が必要');
                         
                         // 最初の問題を取得（完了まで待機）
                         console.log('📥 [診断] 問題取得を開始します');
@@ -1027,19 +1053,32 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         
                         if (result) {
                             console.log('🎉 [診断] 学習開始成功！問題が取得できました');
+                            // 強制的にstudyModeを再設定
+                            console.log('🔧 [修正] studyModeを強制的に"studying"に再設定');
+                            setStudyMode('studying');
                         } else {
                             console.log('❌ [診断] 学習開始失敗：問題が取得できませんでした');
+                            console.log('🔴 [重要] 問題取得失敗により設定画面に戻ります');
+                            backToSetup();
+                            return; // 早期リターン
                         }
                         
                     } catch (error) {
                         console.error('❌ [診断] startStudySession エラー:', error);
-                        alert(`❌ [診断] エラーが発生しました: ${error.message}`);
+                        console.log('🔴 [重要] startStudySessionでエラー発生 - backToSetup()を呼び出します');
+                        backToSetup();
                         showAlert('学習開始エラー', `学習開始に失敗しました。\n\nエラー: ${error.message}`);
                     }
                 };
 
                 // 次の問題取得関数
                 const getNextProblem = async (settings = studySettings) => {
+                    // 重複実行防止
+                    if (mathIsLoading) {
+                        console.log('⚠️ [重複防止] 問題取得が既に実行中、スキップします');
+                        return null;
+                    }
+                    
                     console.log('🔍 デバッグ - getNextProblem開始:', {
                         settings,
                         studySettings,
@@ -1081,6 +1120,13 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                             // 問題取得成功時は即座に状態を更新
                             setMathCurrentProblem(problem);
                             setMathIsLoading(false);
+                            
+                            // 進捗更新
+                            setMathProgress(prev => ({
+                                ...prev,
+                                solved: prev.solved + 1
+                            }));
+                            
                             console.log('✅ mathCurrentProblem更新完了');
                             return problem;
                         } else {
@@ -1090,6 +1136,12 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                         }
                     } catch (error) {
                         console.error('❌ getNextProblem エラー:', error);
+                        console.log('🔴 [重要] getNextProblemでエラー発生 - 状態確認:', {
+                            studyMode,
+                            mathCurrentProblem: !!mathCurrentProblem,
+                            mathIsLoading,
+                            errorMessage: error.message
+                        });
                         setMathIsLoading(false);
                         showAlert('問題取得エラー', `問題の取得に失敗しました。\n\nエラー: ${error.message}`);
                         return null;
@@ -1098,6 +1150,10 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
 
                 // 設定画面に戻る関数
                 const backToSetup = () => {
+                    console.log('🔴 [重要] backToSetup関数が呼ばれました！', {
+                        currentStudyMode: studyMode,
+                        callStack: new Error().stack
+                    });
                     setStudyMode('setup');
                     setMathCurrentProblem(null);
                     setShowSteps(false);
@@ -1106,12 +1162,21 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                     setProblemCount(1);
                 };
 
+
                 // 修正：単純化された条件分岐
                 console.log('🔍 [修正] レンダリング判定:', {
                     studyMode,
                     mathCurrentProblem: !!mathCurrentProblem,
                     mathIsLoading,
-                    forceUpdate
+                    studySettings: !!studySettings
+                });
+                
+                // **重要**：全ての条件を詳細にログ出力
+                console.log('🔍 [条件判定] 各条件の詳細チェック:', {
+                    '条件1_問題表示': `studyMode === 'studying'(${studyMode === 'studying'}) && mathCurrentProblem(${!!mathCurrentProblem}) && !mathIsLoading(${!mathIsLoading})`,
+                    '条件2_ローディング': `mathIsLoading(${mathIsLoading})`,
+                    '条件3_待機状態': `studyMode === 'studying'(${studyMode === 'studying'}) && !mathCurrentProblem(${!mathCurrentProblem}) && !mathIsLoading(${!mathIsLoading})`,
+                    '条件4_設定モード': `studyMode === 'setup'(${studyMode === 'setup'})`
                 });
 
                 // 学習モードで問題がある場合：問題表示
@@ -1298,196 +1363,6 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                     );
                 }
 
-                // 学習中で問題がロードされている場合（問題表示）
-                if (studyMode === 'studying' && mathCurrentProblem) {
-                    return (
-                        <div className="space-y-4 sm:space-y-6">
-                            {/* 学習セッション情報 */}
-                            {studySettings && (
-                                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg">
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                        <div>
-                                            <h2 className="text-lg font-bold">🎯 学習セッション中</h2>
-                                            <p className="text-sm opacity-90">
-                                                {studySettings.grade} | {studySettings.unit} | {studySettings.level}レベル
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-center">
-                                                <div className="text-xl font-bold">{problemCount - 1}</div>
-                                                <div className="text-xs opacity-80">問題目</div>
-                                            </div>
-                                            <button
-                                                onClick={backToSetup}
-                                                className="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded text-sm font-medium transition-all"
-                                            >
-                                                ⚙️ 設定変更
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* レスポンシブな問題表示 */}
-                            <div className="bg-blue-50 p-4 sm:p-6 rounded-lg">
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
-                                    <h3 className="text-lg sm:text-xl font-bold text-blue-900">
-                                        {mathCurrentProblem.source === 'pool' ? '📚' : '🤖'} {mathCurrentProblem.source === 'pool' ? 'プール問題' : 'AI生成問題'} - {mathCurrentProblem.grade} {mathCurrentProblem.unit}
-                                    </h3>
-                                    <span className={`self-start sm:self-auto px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                                        mathCurrentProblem.level === '基礎' ? 'bg-green-200 text-green-800' :
-                                        mathCurrentProblem.level === '標準' ? 'bg-blue-200 text-blue-800' :
-                                        mathCurrentProblem.level === '応用' ? 'bg-orange-200 text-orange-800' :
-                                        'bg-red-200 text-red-800'
-                                    }`}>
-                                        {mathCurrentProblem.level}レベル
-                                    </span>
-                                </div>
-                                
-                                <div className="bg-white p-4 sm:p-6 rounded border-l-4 border-blue-500">
-                                    <p className="text-base sm:text-lg font-medium mb-4 whitespace-pre-wrap leading-relaxed">{mathCurrentProblem.problem}</p>
-                                    {mathCurrentProblem.hint && (
-                                        <div className="bg-yellow-50 p-3 rounded border-l-4 border-yellow-400">
-                                            <p className="text-sm text-yellow-800">
-                                                💡 <strong>ヒント:</strong> {mathCurrentProblem.hint}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {!showSteps ? (
-                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                                    <button
-                                        onClick={() => setShowSteps(true)}
-                                        className="bg-blue-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-blue-700 active:bg-blue-800 flex items-center justify-center gap-2 touch-manipulation font-medium"
-                                    >
-                                        🧠 <span className="sm:hidden">解説を見る</span><span className="hidden sm:inline">AI詳細解説を見る</span>
-                                    </button>
-                                    <button
-                                        onClick={() => getNextProblem()}
-                                        className="bg-green-600 text-white px-4 sm:px-6 py-3 rounded-lg hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium"
-                                    >
-                                        🔄 <span className="sm:hidden">次の問題</span><span className="hidden sm:inline">次の問題を{studySettings?.usePool ? '取得' : '生成'}</span>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {/* レスポンシブなステップ解説 */}
-                                    <div className="bg-gray-50 p-4 sm:p-6 rounded-lg">
-                                        <h4 className="font-bold text-base sm:text-lg mb-4">🤖 AI生成：詳細解説（{mathCurrentProblem.steps.length}段階）</h4>
-                                        
-                                        {/* レスポンシブなステップ選択 */}
-                                        <div className="grid grid-cols-2 sm:flex gap-2 mb-4 sm:mb-6">
-                                            {mathCurrentProblem.steps.map((step, idx) => {
-                                                const stepLabels = [
-                                                    '理解', '方針', '準備', '計算', '推論', '検算', 'まとめ'
-                                                ];
-                                                return (
-                                                    <button
-                                                        key={idx}
-                                                        onClick={() => setCurrentStep(idx)}
-                                                        className={`px-2 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-all touch-manipulation ${
-                                                            currentStep === idx 
-                                                                ? 'bg-blue-600 text-white shadow-md' 
-                                                                : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400'
-                                                        }`}
-                                                        title={step.step}
-                                                    >
-                                                        <span className="sm:hidden">{idx + 1}</span>
-                                                        <span className="hidden sm:inline">{idx + 1}. {stepLabels[idx] || `ステップ${idx + 1}`}</span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                        
-                                        <div className="bg-white p-4 sm:p-6 rounded border step-animation">
-                                            <h5 className="font-bold text-blue-900 mb-3 text-base sm:text-lg">
-                                                {currentStep + 1}. {mathCurrentProblem.steps[currentStep].step}
-                                            </h5>
-                                            
-                                            <div className="space-y-3 sm:space-y-4">
-                                                <div>
-                                                    <h6 className="font-semibold text-gray-800 mb-2 text-sm">📝 内容</h6>
-                                                    <p className="text-gray-800 bg-gray-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                                                        {mathCurrentProblem.steps[currentStep].content}
-                                                    </p>
-                                                </div>
-                                                
-                                                <div>
-                                                    <h6 className="font-semibold text-gray-800 mb-2 text-sm">💡 解説</h6>
-                                                    <p className="text-yellow-800 bg-yellow-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                                                        {mathCurrentProblem.steps[currentStep].explanation}
-                                                    </p>
-                                                </div>
-                                                
-                                                {mathCurrentProblem.steps[currentStep].detail && (
-                                                    <div>
-                                                        <h6 className="font-semibold text-gray-800 mb-2 text-sm">🔍 詳細</h6>
-                                                        <p className="text-blue-800 bg-blue-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                                                            {mathCurrentProblem.steps[currentStep].detail}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* レスポンシブなナビゲーション */}
-                                        <div className="flex gap-2 mt-4 sm:mt-6">
-                                            <button
-                                                onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-                                                disabled={currentStep === 0}
-                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
-                                            >
-                                                ⬅️ <span className="sm:hidden">前</span><span className="hidden sm:inline">前のステップ</span>
-                                            </button>
-                                            <button
-                                                onClick={() => setCurrentStep(Math.min(mathCurrentProblem.steps.length - 1, currentStep + 1))}
-                                                disabled={currentStep === mathCurrentProblem.steps.length - 1}
-                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation font-medium text-sm"
-                                            >
-                                                <span className="sm:hidden">次</span><span className="hidden sm:inline">次のステップ</span> ➡️
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* レスポンシブな解答と分析 */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                        <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
-                                            <h4 className="font-bold text-green-900 mb-2 text-sm sm:text-base">✅ 解答</h4>
-                                            <p className="text-green-800 text-base sm:text-lg font-medium whitespace-pre-wrap">{mathCurrentProblem.answer}</p>
-                                        </div>
-                                        
-                                        {mathCurrentProblem.learning_point && (
-                                            <div className="bg-purple-50 p-3 sm:p-4 rounded-lg">
-                                                <h4 className="font-bold text-purple-900 mb-2 text-sm sm:text-base">📚 学習ポイント</h4>
-                                                <p className="text-purple-800 text-xs sm:text-sm leading-relaxed">{mathCurrentProblem.learning_point}</p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                                        <button
-                                            onClick={() => {
-                                                setShowSteps(false);
-                                                setCurrentStep(0);
-                                            }}
-                                            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 active:bg-gray-800 touch-manipulation font-medium text-sm"
-                                        >
-                                            📋 問題に戻る
-                                        </button>
-                                        <button
-                                            onClick={() => getNextProblem()}
-                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 active:bg-green-800 touch-manipulation font-medium text-sm"
-                                        >
-                                            🔄 次の問題を{studySettings?.usePool ? '取得' : '生成'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    );
-                }
 
                 // 学習中で問題がない場合（エラー対処）
                 if (studyMode === 'studying' && !mathCurrentProblem) {
@@ -1542,7 +1417,7 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                 }
 
                 // 設定モード表示（デフォルト）
-                if (studyMode === 'setup' || (!mathCurrentProblem && !mathIsLoading && studyMode === 'studying')) {
+                if (studyMode === 'setup') {
                     return (
                         <div className="space-y-6">
                             {/* 学習設定ヘッダー */}
@@ -1686,11 +1561,16 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                 
                                 {/* 学習開始ボタン */}
                                 <button
-                                    onClick={startStudySession}
+                                    onClick={() => {
+                                        console.log('🖱️ [ボタンクリック] 学習開始ボタンがクリックされました');
+                                        console.log('🔍 [ボタン状態] usePool:', usePool, 'apiStatus.connected:', apiStatus.connected);
+                                        console.log('🔍 [ボタン無効化] disabled状態:', !usePool && !apiStatus.connected);
+                                        startStudySession();
+                                    }}
                                     disabled={!usePool && !apiStatus.connected}
                                     className={`w-full px-8 py-4 rounded-lg text-lg font-bold transition-all transform hover:scale-105 active:scale-95 touch-manipulation ${
                                         (usePool || (!usePool && apiStatus.connected))
-                                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg' 
+                                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg'
                                             : 'bg-gray-400 text-gray-600 cursor-not-allowed'
                                     }`}
                                 >
@@ -2322,8 +2202,25 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
                                     </div>
                                 </div>
 
-                                {selectedSubject === 'math' && <MathSection />}
-                                {selectedSubject === 'english_word' && <EnglishWordSection />}
+                                {selectedSubject === 'math' && <MathSection
+                                    key="math-section"
+                                    studyMode={mathStudyMode}
+                                    setStudyMode={setMathStudyMode}
+                                    studySettings={mathStudySettings}
+                                    setStudySettings={setMathStudySettings}
+                                    mathCurrentProblem={mathCurrentProblem}
+                                    setMathCurrentProblem={setMathCurrentProblem}
+                                    mathIsLoading={mathIsLoading}
+                                    setMathIsLoading={setMathIsLoading}
+                                    mathProgress={mathProgress}
+                                    setMathProgress={setMathProgress}
+                                    apiStatus={apiStatus}
+                                    problemPoolStats={problemPoolStats}
+                                    showAlert={showAlert}
+                                    getProblemFromPool={getProblemFromPool}
+                                    generateMathProblem={generateMathProblem}
+                                />}
+                                {selectedSubject === 'english_word' && <EnglishWordSection key="english-section" />}
                             </div>
                         </div>
                     )}
