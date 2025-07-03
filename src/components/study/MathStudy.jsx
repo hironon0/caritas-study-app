@@ -169,6 +169,7 @@ const MathStudy = ({
 
   // ローディング画面
   if (isLoading) {
+    console.log('🚨 [MathStudy] ローディング画面をレンダリング')
     return (
       <LoadingScreen
         message={studySettings?.usePool ? '問題プールから取得中' : 'AIが高品質な問題を生成中'}
@@ -182,6 +183,13 @@ const MathStudy = ({
 
   // 問題表示画面
   if (studyMode === 'studying' && currentProblem) {
+    console.log('🚨 [MathStudy] ProblemDisplayをレンダリング:', {
+      studyMode,
+      currentProblem: !!currentProblem,
+      showSteps,
+      currentStep,
+      problemId: currentProblem?.id
+    })
     return (
       <ProblemDisplay
         problem={currentProblem}
@@ -201,6 +209,7 @@ const MathStudy = ({
 
   // 学習中で問題がない場合（エラー状態）
   if (studyMode === 'studying' && !currentProblem && !isLoading) {
+    console.log('🚨 [MathStudy] エラー状態をレンダリング')
     return (
       <div className="space-y-4">
         {/* 学習セッション情報 */}

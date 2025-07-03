@@ -142,19 +142,15 @@ app.use(helmet({
 }));
 
 app.use(compression());
+
+// 開発環境用のシンプルで確実なCORS設定
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://caritas-study-app.vercel.app', 'https://your-custom-domain.com', 'http://localhost:3001']
-    : [
-        'http://localhost:3000', 
-        'http://localhost:3001',
-        'http://127.0.0.1:3001',
-        'null' // Safari file:// プロトコル対応
-      ],
-  credentials: false, // Safari対応: 認証情報を使わない
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept', 'Cache-Control'],
-  optionsSuccessStatus: 200 // Safari対応: OPTIONSリクエストの成功ステータス
+  origin: true, // 開発環境では全てのオリジンを許可
+  credentials: false,
+  methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Cache-Control', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json({ limit: '10mb' }));

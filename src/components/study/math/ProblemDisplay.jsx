@@ -23,6 +23,15 @@ const ProblemDisplay = ({
   onNextProblem,
   onBackToSetup
 }) => {
+  // コンポーネントレンダリング確認
+  console.log('🔥 [ProblemDisplay] レンダリング確認:', {
+    problem: !!problem,
+    showSteps: showSteps,
+    currentStep: currentStep,
+    problemId: problem?.id,
+    timestamp: new Date().toISOString()
+  })
+
   if (!problem) {
     return (
       <div className="bg-red-50 border border-red-200 p-4 rounded-lg text-center">
@@ -126,6 +135,15 @@ const ProblemDisplay = ({
         </div>
       ) : (
         <div className="space-y-4">
+          {/* デバッグログ追加 */}
+          {console.log('🚨 [ProblemDisplay] StepExplanationを呼び出し中:', {
+            problem: problem,
+            showSteps: showSteps,
+            currentStep: currentStep,
+            problemSteps: problem.steps,
+            stepsLength: problem.steps?.length
+          })}
+          
           {/* ステップ解説コンポーネント */}
           <StepExplanation
             problem={problem}

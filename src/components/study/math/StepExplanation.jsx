@@ -16,12 +16,27 @@ const StepExplanation = ({
   onNextStep,
   onPrevStep
 }) => {
+  // シンプルな判定に戻す
   const hasDetailedSteps = problem.steps && problem.steps.length > 0
-
-  console.log('🔍 [StepExplanation] レンダリング:', {
-    hasDetailedSteps,
+  
+  // 強制的にtrueにして確認
+  console.log('🚨 [FORCED DEBUG] hasDetailedSteps強制確認:', {
+    originalJudgment: problem.steps && problem.steps.length > 0,
+    problemSteps: problem.steps,
     stepsLength: problem.steps?.length,
-    currentStep
+    forcedTrue: true
+  })
+
+  // 詳細デバッグログ
+  console.log('🔍 [StepExplanation] 詳細デバッグ:', {
+    problem: problem,
+    problemSteps: problem.steps,
+    stepsType: typeof problem.steps,
+    isArray: Array.isArray(problem.steps),
+    stepsLength: problem.steps?.length,
+    hasDetailedSteps,
+    currentStep,
+    firstStep: problem.steps?.[0]
   })
 
   return (
@@ -66,30 +81,51 @@ const StepExplanation = ({
               {currentStep + 1}. {problem.steps[currentStep].step}
             </h5>
             
+            {/* デバッグ情報 */}
+            <div className="debug-panel mb-4" style={{backgroundColor: '#fff3cd', padding: '10px', border: '1px solid #ffeaa7', borderRadius: '5px'}}>
+              <strong>🔍 デバッグ情報:</strong><br />
+              現在ステップ: {currentStep}<br />
+              ステップ総数: {problem.steps.length}<br />
+              現在ステップデータ: {JSON.stringify(problem.steps[currentStep], null, 2)}<br />
+            </div>
+            
             <div className="space-y-3 sm:space-y-4">
               {/* 内容 */}
               <div>
                 <h6 className="font-semibold text-gray-800 mb-2 text-sm">📝 内容</h6>
                 <p className="text-gray-800 bg-gray-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                  {problem.steps[currentStep].content}
+                  {problem.steps[currentStep]?.content || '内容データがありません'}
                 </p>
+                <div className="text-xs text-red-600">
+                  デバッグ: content = "{problem.steps[currentStep]?.content}"
+                </div>
               </div>
               
               {/* 解説 */}
               <div>
                 <h6 className="font-semibold text-gray-800 mb-2 text-sm">💡 解説</h6>
                 <p className="text-yellow-800 bg-yellow-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
-                  {problem.steps[currentStep].explanation}
+                  {problem.steps[currentStep]?.explanation || '解説データがありません'}
                 </p>
+                <div className="text-xs text-red-600">
+                  デバッグ: explanation = "{problem.steps[currentStep]?.explanation}"
+                </div>
               </div>
               
               {/* 詳細（ある場合のみ） */}
-              {problem.steps[currentStep].detail && (
+              {problem.steps[currentStep]?.detail && (
                 <div>
                   <h6 className="font-semibold text-gray-800 mb-2 text-sm">🔍 詳細</h6>
                   <p className="text-blue-800 bg-blue-50 p-3 rounded text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
                     {problem.steps[currentStep].detail}
                   </p>
+                </div>
+              )}
+              
+              {/* 詳細がない場合のデバッグ情報 */}
+              {!problem.steps[currentStep]?.detail && (
+                <div className="text-xs text-orange-600">
+                  詳細データなし: detail = "{problem.steps[currentStep]?.detail}"
                 </div>
               )}
             </div>
