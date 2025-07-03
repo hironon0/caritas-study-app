@@ -1,6 +1,7 @@
 import React from 'react'
 import MathStudy from './study/MathStudy'
 import EnglishWordStudy from './study/EnglishWordStudy'
+import EnglishStudy from './study/EnglishStudy'
 
 /**
  * 学習セクションコンポーネント
@@ -21,6 +22,8 @@ const StudySection = ({
         return '🤖 AI数学学習'
       case 'english_word':
         return '📚 AI英単語学習'
+      case 'english_quiz':
+        return '🇬🇧 英語4択テスト'
       default:
         return '📖 学習'
     }
@@ -32,6 +35,8 @@ const StudySection = ({
         return 'AI + プール'
       case 'english_word':
         return 'AI生成'
+      case 'english_quiz':
+        return 'AI + プール'
       default:
         return '学習'
     }
@@ -66,8 +71,12 @@ const StudySection = ({
           <EnglishWordStudy {...props} />
         )}
         
+        {selectedSubject === 'english_quiz' && (
+          <EnglishStudy {...props} />
+        )}
+        
         {/* 未対応科目 */}
-        {!['math', 'english_word'].includes(selectedSubject) && (
+        {!['math', 'english_word', 'english_quiz'].includes(selectedSubject) && (
           <div className="bg-white p-6 rounded-lg shadow text-center">
             <div className="text-4xl mb-4">🚧</div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">準備中</h2>

@@ -1,12 +1,13 @@
 import React, { useState } from 'react'
 import { useMathProblemGenerator } from '../hooks/useMathProblemGenerator'
+import { useEnglishProblemGenerator } from '../hooks/useEnglishProblemGenerator'
 import { BatchLoadingScreen } from './ui/LoadingScreen'
 
 /**
  * 管理画面コンポーネント
  * 
  * 機能:
- * - AI問題一括生成
+ * - AI問題一括生成（数学・英語4択）
  * - 問題プール管理
  * - 統計情報表示
  * - 一括プール追加
@@ -31,7 +32,11 @@ const AdminSection = ({
   const [generatedProblems, setGeneratedProblems] = useState([])
   
   // 問題生成フック
-  const { generateBatchMathProblems, isGenerating } = useMathProblemGenerator()
+  const { generateBatchMathProblems, isGenerating: isMathGenerating } = useMathProblemGenerator()
+  const { generateBatchEnglishProblems, isGenerating: isEnglishGenerating } = useEnglishProblemGenerator()
+  
+  // 生成状態の統合
+  const isGenerating = isMathGenerating || isEnglishGenerating
 
   // 選択肢データ
   const gradeOptions = ['中1', '中2', '中3', '高1']
@@ -57,20 +62,31 @@ const AdminSection = ({
       return
     }
 
-    const confirmMessage = `${batchCount}問の${selectedSubject === 'math' ? '数学' : '英語'}問題を一括生成します。\n\n設定詳細:\n・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル\n・生成数: ${batchCount}問\n\n※一度に${batchCount}問を生成するため、通常より時間がかかります`
+    const subjectName = selectedSubject === 'math' ? '数学' : '英語4択'
+    const settingsText = selectedSubject === 'math'
+      ? `・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル`
+      : `・学年: ${selectedGrade}\n・難易度: ${selectedLevel}レベル`
+    
+    const confirmMessage = `${batchCount}問の${subjectName}問題を一括生成します。\n\n設定詳細:\n${settingsText}\n・生成数: ${batchCount}問\n\n※一度に${batchCount}問を生成するため、通常より時間がかかります`
     
     showConfirm(
       '🤖 AI一括問題生成の確認',
       confirmMessage,
       async () => {
         try {
-          const problems = await generateBatchMathProblems(selectedGrade, selectedUnit, selectedLevel, batchCount)
+          let problems
+          if (selectedSubject === 'math') {
+            problems = await generateBatchMathProblems(selectedGrade, selectedUnit, selectedLevel, batchCount)
+          } else if (selectedSubject === 'english_quiz') {
+            problems = await generateBatchEnglishProblems(selectedGrade, selectedLevel, batchCount)
+          }
+          
           if (problems && problems.length > 0) {
             setGeneratedProblems(prev => [...problems, ...prev])
-            showAlert('生成完了', `🎉 ${problems.length}問の生成が完了しました！\n\n生成された問題をプールに追加できます。`)
+            showAlert('生成完了', `🎉 ${problems.length}問の${subjectName}問題生成が完了しました！\n\n生成された問題をプールに追加できます。`)
           }
         } catch (error) {
-          showAlert('生成エラー', `問題生成に失敗しました。\n\nエラー: ${error.message}`)
+          showAlert('生成エラー', `${subjectName}問題生成に失敗しました。\n\nエラー: ${error.message}`)
         }
       }
     )
@@ -81,15 +97,48 @@ const AdminSection = ({
    */
   const handleAddToPool = async (problem) => {
     try {
-      await addProblemToPool(problem)
+      const apiUrl = window.CARITAS_API_URL
+      let response
+      
+      if (problem.word) {
+        // 英語問題の場合
+        response = await fetch(`${apiUrl}/api/english-pool/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ problem })
+        })
+      } else {
+        // 数学問題の場合
+        response = await fetch(`${apiUrl}/api/problem-pool/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ problem })
+        })
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTPエラー: ${response.status}`)
+      }
+
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || '問題の追加に失敗しました')
+      }
       
       // 追加済みマークを付ける
-      setGeneratedProblems(prev => 
+      setGeneratedProblems(prev =>
         prev.map(p => p === problem ? { ...p, addedToPool: true } : p)
       )
       
-      showAlert('追加完了', '問題をプールに追加しました！')
+      const subject = problem.word ? '英語問題' : '数学問題'
+      showAlert('追加完了', `${subject}をプールに追加しました！`)
+      
+      // 統計情報を更新
+      await fetchProblemPoolStats()
+      
     } catch (error) {
+      console.error('問題追加エラー:', error)
       showAlert('追加エラー', `問題の追加に失敗しました。\n\nエラー: ${error.message}`)
     }
   }
@@ -102,14 +151,23 @@ const AdminSection = ({
       console.log(`🚀 ${problems.length}問の一括プール追加開始`)
       
       const apiUrl = window.CARITAS_API_URL
-      const response = await fetch(`${apiUrl}/api/problem-pool/add-batch`, {
+      
+      // 英語問題か数学問題かを判定
+      const isEnglishProblems = problems.length > 0 && problems[0].word
+      const endpoint = isEnglishProblems ? '/api/english-pool/add-batch' : '/api/problem-pool/add-batch'
+      const subject = isEnglishProblems ? '英語' : '数学'
+      
+      console.log(`📝 ${subject}問題として処理: ${endpoint}`)
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ problems })
       })
 
       if (!response.ok) {
-        throw new Error(`HTTPエラー: ${response.status}`)
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `HTTPエラー: ${response.status}`)
       }
 
       const data = await response.json()
@@ -118,14 +176,14 @@ const AdminSection = ({
         const successCount = data.success_count || 0
         const failureCount = data.failure_count || 0
         
-        console.log(`✅ 一括プール追加完了: 成功${successCount}問, 失敗${failureCount}問`)
+        console.log(`✅ ${subject}問題一括プール追加完了: 成功${successCount}問, 失敗${failureCount}問`)
         
         // 成功した問題に追加済みマークを付ける
         if (data.results && Array.isArray(data.results)) {
           const successfulResults = data.results.filter(r => r.success)
           const successfulIndices = successfulResults.map(r => r.index)
           
-          setGeneratedProblems(prev => 
+          setGeneratedProblems(prev =>
             prev.map((p, globalIndex) => {
               const localIndex = problems.findIndex(prob => prob === p)
               if (localIndex !== -1 && successfulIndices.includes(localIndex)) {
@@ -141,8 +199,8 @@ const AdminSection = ({
         
         // 結果メッセージ
         const message = failureCount > 0
-          ? `一括追加完了\n\n成功: ${successCount}問\n失敗: ${failureCount}問\n\n一部の問題で追加に失敗しました。`
-          : `🎉 ${successCount}問の一括追加が完了しました！\n\n問題プールで利用できるようになりました。`
+          ? `${subject}問題一括追加完了\n\n成功: ${successCount}問\n失敗: ${failureCount}問\n\n一部の問題で追加に失敗しました。`
+          : `🎉 ${successCount}問の${subject}問題一括追加が完了しました！\n\n問題プールで利用できるようになりました。`
         
         showAlert('一括追加結果', message)
         
@@ -166,7 +224,7 @@ const AdminSection = ({
       return
     }
 
-    const confirmMessage = `生成された${unadded.length}問をプールに一括追加します。\n\n追加される問題:\n${unadded.map((p, i) => `${i+1}. ${p.grade} ${p.unit} (${p.level})`).join('\n')}\n\nプールに追加すると、今後の学習で利用できるようになります。`
+    const confirmMessage = `生成された${unadded.length}問をプールに一括追加します。\n\n追加される問題:\n${unadded.map((p, i) => `${i+1}. ${p.word ? p.word : p.grade + ' ' + p.unit} (${p.level})`).join('\n')}\n\nプールに追加すると、今後の学習で利用できるようになります。`
     
     showConfirm(
       '📚 プール一括追加の確認',
@@ -195,8 +253,8 @@ const AdminSection = ({
     <div className="space-y-4 sm:space-y-6">
       {/* 管理画面ヘッダー */}
       <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white p-4 sm:p-6 rounded-lg">
-        <h2 className="text-xl sm:text-2xl font-bold mb-2">⚙️ 問題プール管理画面</h2>
-        <p className="text-sm sm:text-base opacity-90">AI問題生成 → プール追加で問題データベースを構築</p>
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">⚙️ 問題プール管理画面 v2.0</h2>
+        <p className="text-sm sm:text-base opacity-90">AI問題生成 → プール追加で問題データベースを構築（数学・英語対応）</p>
       </div>
 
       {/* 統計情報 */}
@@ -228,14 +286,14 @@ const AdminSection = ({
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">科目</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">📚 科目選択</label>
             <select
               value={selectedSubject}
               onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring"
+              className="w-full p-2 sm:p-3 border border-purple-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring bg-white"
             >
-              <option value="math">数学</option>
-              <option value="english" disabled>英語（準備中）</option>
+              <option value="math">🧮 数学問題</option>
+              <option value="english_quiz">🇬🇧 英語4択問題</option>
             </select>
           </div>
           
@@ -252,19 +310,29 @@ const AdminSection = ({
             </select>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">分野</label>
-            <select
-              value={selectedUnit}
-              onChange={(e) => setSelectedUnit(e.target.value)}
-              className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring"
-              disabled={selectedSubject !== 'math'}
-            >
-              {selectedSubject === 'math' && mathUnitsByGrade[selectedGrade].map(unit => (
-                <option key={unit} value={unit}>{unit}</option>
-              ))}
-            </select>
-          </div>
+          {selectedSubject === 'math' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">分野</label>
+              <select
+                value={selectedUnit}
+                onChange={(e) => setSelectedUnit(e.target.value)}
+                className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring"
+              >
+                {mathUnitsByGrade[selectedGrade].map(unit => (
+                  <option key={unit} value={unit}>{unit}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {selectedSubject === 'english_quiz' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">教材</label>
+              <div className="w-full p-2 sm:p-3 border border-gray-200 rounded-md bg-green-50 text-sm text-green-700 font-medium">
+                Progress 21準拠
+              </div>
+            </div>
+          )}
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">難易度</label>
@@ -336,7 +404,11 @@ const AdminSection = ({
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-600">
-                      {problem.grade} / {problem.unit} / {problem.level}
+                      {problem.word ? (
+                        `🇬🇧 ${problem.grade} / ${problem.level} / ${problem.word}`
+                      ) : (
+                        `🧮 ${problem.grade} / ${problem.unit} / ${problem.level}`
+                      )}
                     </span>
                     {problem.addedToPool && (
                       <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
@@ -355,12 +427,35 @@ const AdminSection = ({
                 </div>
                 
                 <div className="bg-gray-50 p-3 rounded text-sm">
-                  <p className="font-medium text-gray-800 mb-2">問題:</p>
-                  <p className="text-gray-700 whitespace-pre-wrap">{problem.problem}</p>
-                  {problem.answer && (
+                  {problem.word ? (
+                    // 英語問題の表示
                     <>
-                      <p className="font-medium text-gray-800 mt-3 mb-1">解答:</p>
-                      <p className="text-green-700 font-medium">{problem.answer}</p>
+                      <p className="font-medium text-gray-800 mb-2">🇬🇧 英単語:</p>
+                      <p className="text-lg font-bold text-blue-700 mb-2">{problem.word}</p>
+                      {problem.pronunciation && (
+                        <p className="text-gray-600 text-sm mb-2">[{problem.pronunciation}]</p>
+                      )}
+                      <p className="font-medium text-gray-800 mb-1">正答:</p>
+                      <p className="text-green-700 font-medium mb-2">{problem.correct_meaning}</p>
+                      <p className="font-medium text-gray-800 mb-1">選択肢:</p>
+                      <ul className="text-gray-700 text-sm space-y-1">
+                        <li>• {problem.correct_meaning} <span className="text-green-600">(正解)</span></li>
+                        {problem.wrong_options?.map((option, i) => (
+                          <li key={i}>• {option}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    // 数学問題の表示
+                    <>
+                      <p className="font-medium text-gray-800 mb-2">🧮 問題:</p>
+                      <p className="text-gray-700 whitespace-pre-wrap">{problem.problem}</p>
+                      {problem.answer && (
+                        <>
+                          <p className="font-medium text-gray-800 mt-3 mb-1">解答:</p>
+                          <p className="text-green-700 font-medium">{problem.answer}</p>
+                        </>
+                      )}
                     </>
                   )}
                 </div>

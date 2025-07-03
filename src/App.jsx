@@ -20,7 +20,7 @@ import './App.css'
 function App() {
   // 現在のセクション管理
   const [currentSection, setCurrentSection] = useState('menu') // 'menu', 'study', 'admin'
-  const [selectedSubject, setSelectedSubject] = useState(null) // 'math', 'english_word'
+  const [selectedSubject, setSelectedSubject] = useState(null) // 'math', 'english_word', 'english_quiz'
   
   // API接続状態
   const { apiStatus, checkApiConnection } = useApiConnection()

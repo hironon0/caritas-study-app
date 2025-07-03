@@ -148,17 +148,23 @@ const MainMenu = ({
             onClick={onNavigateToAdmin}
           />
 
-          {/* Coming Soon */}
+          {/* 英語4択テスト */}
           <FeatureCard
-            title="AI英語問題"
-            subtitle="長文読解・文法（準備中）"
-            icon="📝"
-            borderColor="border-gray-300"
-            bgColor="bg-gray-200"
-            features={[]}
-            stats={[]}
-            disabled
-            comingSoon
+            title="英語4択テスト"
+            subtitle="Progress 21準拠 + AI問題生成"
+            icon="🇬🇧"
+            borderColor="border-indigo-500"
+            bgColor="bg-indigo-100"
+            features={[
+              '🤖 AI生成4択問題（思考力重視）',
+              '📚 プール機能（復習効率化）',
+              '🎯 正答率追跡（学習分析）',
+              '🔄 間違い単語管理（復習支援）'
+            ]}
+            stats={[
+              { label: '4択形式', value: 'テスト対策', color: 'text-indigo-600' }
+            ]}
+            onClick={() => onNavigateToStudy('english_quiz')}
           />
         </div>
 
