@@ -398,29 +398,16 @@ app.post('/api/generate-math', async (req, res) => {
         }];
         console.log('OpenAIへのリクエスト:', JSON.stringify(messages, null, 2));
 
-        // フォールバック機能付きのAI呼び出し
-        let response;
-        try {
-            console.log('🚀 gpt-3.5-turbo で問題生成を試行中...');
-            response = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                max_tokens: 3000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-3.5-turbo 成功');
-        } catch (turboError) {
-            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
-            response = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                max_tokens: 3000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-4o-mini フォールバック成功');
-        }
+        // gpt-4o-mini統一モデル使用
+        console.log('🚀 gpt-4o-mini で問題生成中...');
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 3000,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            messages: messages,
+        });
+        console.log('✅ gpt-4o-mini 問題生成成功');
 
         const result = response.choices[0].message.content;
 
@@ -571,29 +558,16 @@ app.post('/api/generate-math-batch', async (req, res) => {
             content: prompt,
         }];
 
-        // フォールバック機能付きのAI呼び出し
-        let response;
-        try {
-            console.log('🚀 gpt-3.5-turbo で一括問題生成を試行中...');
-            response = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                max_tokens: 16000,  // 複数問題のため大幅に増加
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-3.5-turbo 成功');
-        } catch (turboError) {
-            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
-            response = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                max_tokens: 16000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-4o-mini フォールバック成功');
-        }
+        // gpt-4o-mini統一モデル使用
+        console.log('🚀 gpt-4o-mini で一括問題生成中...');
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 16000,  // 複数問題のため大幅に増加
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            messages: messages,
+        });
+        console.log('✅ gpt-4o-mini 一括問題生成成功');
 
         const result = response.choices[0].message.content;
 
@@ -701,29 +675,16 @@ app.post('/api/generate-english', async (req, res) => {
         }];
         console.log('OpenAIへのリクエスト:', JSON.stringify(messages, null, 2));
 
-        // フォールバック機能付きのAI呼び出し
-        let response;
-        try {
-            console.log('🚀 gpt-3.5-turbo で英語単語生成を試行中...');
-            response = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                max_tokens: 2000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-3.5-turbo 成功');
-        } catch (turboError) {
-            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
-            response = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                max_tokens: 2000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-4o-mini フォールバック成功');
-        }
+        // gpt-4o-mini統一モデル使用
+        console.log('🚀 gpt-4o-mini で英語単語生成中...');
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 2000,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            messages: messages,
+        });
+        console.log('✅ gpt-4o-mini 英語単語生成成功');
 
         const result = response.choices[0].message.content;
 
@@ -845,29 +806,16 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
             content: prompt,
         }];
 
-        // フォールバック機能付きのAI呼び出し
-        let response;
-        try {
-            console.log('🚀 gpt-3.5-turbo で英単語4択問題生成を試行中...');
-            response = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                max_tokens: 2000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-3.5-turbo 成功');
-        } catch (turboError) {
-            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
-            response = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                max_tokens: 2000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-4o-mini フォールバック成功');
-        }
+        // gpt-4o-mini統一モデル使用
+        console.log('🚀 gpt-4o-mini で英単語4択問題生成中...');
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 2000,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            messages: messages,
+        });
+        console.log('✅ gpt-4o-mini 英単語4択問題生成成功');
 
         const result = response.choices[0].message.content;
 
@@ -996,29 +944,16 @@ app.post('/api/generate-english-quiz-batch', async (req, res) => {
             content: prompt,
         }];
 
-        // フォールバック機能付きのAI呼び出し
-        let response;
-        try {
-            console.log('🚀 gpt-3.5-turbo で英単語4択問題一括生成を試行中...');
-            response = await openai.chat.completions.create({
-                model: 'gpt-3.5-turbo',
-                max_tokens: 16000,  // 複数問題のため大幅に増加
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-3.5-turbo 成功');
-        } catch (turboError) {
-            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
-            response = await openai.chat.completions.create({
-                model: 'gpt-4o-mini',
-                max_tokens: 16000,
-                temperature: 0.5,
-                response_format: { type: "json_object" },
-                messages: messages,
-            });
-            console.log('✅ gpt-4o-mini フォールバック成功');
-        }
+        // gpt-4o-mini統一モデル使用
+        console.log('🚀 gpt-4o-mini で英単語4択問題一括生成中...');
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 16000,  // 複数問題のため大幅に増加
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            messages: messages,
+        });
+        console.log('✅ gpt-4o-mini 英単語4択問題一括生成成功');
 
         const result = response.choices[0].message.content;
 
@@ -1073,6 +1008,265 @@ app.post('/api/generate-english-quiz-batch', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'AI英単語4択問題一括生成中にサーバー内部でエラーが発生しました',
+            details: error.message,
+        });
+    }
+});
+
+// カテゴリ毎一括問題生成API（最適化版）
+app.post('/api/generate-category-batch', async (req, res) => {
+    if (!openai) {
+        return res.status(503).json({
+            success: false,
+            error: 'OpenAI API機能が利用できません。環境変数を確認してください。',
+        });
+    }
+
+    try {
+        const { subject, grade, unit, level, count } = req.body;
+
+        if (!subject || !grade || !level || !count) {
+            return res.status(400).json({
+                success: false,
+                error: '必要なパラメータが不足しています（subject, grade, level, count）',
+                required: ['subject', 'grade', 'level', 'count'],
+                optional: ['unit (数学のみ)']
+            });
+        }
+
+        console.log(`📝 カテゴリ毎一括生成リクエスト: ${subject} ${count}問`);
+        console.log('パラメータ:', JSON.stringify(req.body, null, 2));
+
+        let prompt = '';
+        let batchSystemMessage = '';
+
+        if (subject === 'math') {
+            // 数学問題用プロンプト（最適化版）
+            if (!unit) {
+                return res.status(400).json({
+                    success: false,
+                    error: '数学問題では分野（unit）パラメータが必要です'
+                });
+            }
+
+            batchSystemMessage = `あなたはカリタス中学校の数学教師として、高品質な問題を効率的に大量生成する専門家です。一度に${count}問の多様で教育的価値の高い問題を作成してください。`;
+
+            prompt = `
+${batchSystemMessage}
+
+カリタス中学校の体系数学に準拠した数学問題を${count}問、一括で効率的に作成してください。
+
+## 生成設定:
+- 学年: ${grade}
+- 分野: ${unit}
+- 難易度: ${level}
+- 生成数: ${count}問
+
+## 効率化要件:
+1. ${count}問すべてが異なる内容・アプローチで多様性を確保
+2. 同一分野内での様々な観点・難易度幅を含む
+3. 段階的な学習進行を考慮した問題配列
+4. 計算量・思考プロセスの多様化
+
+## 品質基準:
+- ${grade}レベルに完全適合
+- カリタス中学校の高度カリキュラム対応
+- 入試対策にも活用可能な良質問題
+- 各問題が独立して完結
+
+**解説は省略せず、中学生の理解を深める詳細な説明を含めてください。**
+
+回答は以下のJSON形式で、厳密に${count}問の配列を返してください:
+{
+  "problems": [
+    {
+      "grade": "${grade}",
+      "level": "${level}",
+      "unit": "具体的な単元名",
+      "problem": "問題文（数式・図表含む）",
+      "steps": [
+        {
+          "step": "ステップタイトル",
+          "content": "実行内容",
+          "explanation": "詳細解説",
+          "detail": "学習ポイント"
+        }
+      ],
+      "answer": "最終答案",
+      "hint": "解法ヒント",
+      "difficulty_analysis": "難易度分析",
+      "learning_point": "学習効果",
+      "estimated_time": "想定解答時間（分）",
+      "category_tag": "問題分類タグ"
+    }
+  ]
+}`;
+
+        } else if (subject === 'english') {
+            // 英語問題用プロンプト（最適化版）
+            batchSystemMessage = `あなたはカリタス中学校の英語教師として、Progress 21に準拠した高品質な4択問題を効率的に大量生成する専門家です。語彙の多様性と学習効果を最大化した${count}問を一括作成してください。`;
+
+            prompt = `
+${batchSystemMessage}
+
+カリタス中学校のProgress 21に準拠した英単語4択問題を${count}問、一括で効率的に作成してください。
+
+## 生成設定:
+- 学年: ${grade}
+- 難易度: ${level}
+- 生成数: ${count}問
+
+## 効率化要件:
+1. ${count}問すべて異なる単語で重複完全排除
+2. Progress 21の重要語彙を幅広くカバー
+3. 紛らわしい選択肢で思考力を育成
+4. 語彙レベルの段階的な配置
+
+## 品質基準:
+- ${grade}${level}レベル完全適合
+- 実用的で覚えやすい語彙選択
+- 文法・語法も考慮した例文
+- 記憶定着を促進する解説
+
+回答は以下のJSON形式で、厳密に${count}問の配列を返してください:
+{
+  "problems": [
+    {
+      "word": "英単語（小文字）",
+      "pronunciation": "発音記号",
+      "grade": "${grade}",
+      "level": "${level}",
+      "correct_meaning": "正しい日本語の意味",
+      "wrong_options": [
+        "紛らわしい選択肢1",
+        "紛らわしい選択肢2",
+        "紛らわしい選択肢3"
+      ],
+      "explanation": "単語の詳細解説（語源・使い方・注意点）",
+      "examples": [
+        {
+          "sentence": "実用的な英語例文1",
+          "translation": "自然な日本語訳1"
+        },
+        {
+          "sentence": "実用的な英語例文2",
+          "translation": "自然な日本語訳2"
+        }
+      ],
+      "difficulty_analysis": "この単語の習得難易度分析",
+      "learning_point": "効果的な覚え方・学習ポイント",
+      "word_frequency": "使用頻度（高/中/低）",
+      "category_tag": "語彙分類（動詞/名詞/形容詞等）"
+    }
+  ]
+}`;
+
+        } else {
+            return res.status(400).json({
+                success: false,
+                error: 'サポートされていない科目です',
+                supported_subjects: ['math', 'english']
+            });
+        }
+
+        const messages = [{
+            role: 'system',
+            content: batchSystemMessage
+        }, {
+            role: 'user',
+            content: prompt
+        }];
+
+        // gpt-4o-mini統一モデル使用（最適化されたトークン制限）
+        const maxTokens = Math.min(15000, count * 600);  // gpt-4o-mini用
+        
+        console.log(`🚀 gpt-4o-mini でカテゴリ一括生成中... (${maxTokens}トークン, ${count}問)`);
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: maxTokens,
+            temperature: 0.7, // 多様性のため
+            response_format: { type: "json_object" },
+            messages: messages,
+        });
+        console.log('✅ gpt-4o-mini カテゴリ一括生成成功');
+
+        const result = response.choices[0].message.content;
+
+        try {
+            const batchData = JSON.parse(result);
+
+            // problems配列の検証
+            if (!batchData.problems || !Array.isArray(batchData.problems)) {
+                throw new Error('problems配列が見つかりません');
+            }
+
+            if (batchData.problems.length !== parseInt(count)) {
+                console.warn(`要求数: ${count}, 実際生成数: ${batchData.problems.length}`);
+            }
+
+            // 科目別フィールド検証
+            const requiredFields = subject === 'math'
+                ? ['grade', 'level', 'unit', 'problem', 'steps', 'answer']
+                : ['word', 'grade', 'level', 'correct_meaning', 'wrong_options', 'explanation'];
+
+            batchData.problems.forEach((problem, index) => {
+                const missingFields = requiredFields.filter(field => !problem[field]);
+                if (missingFields.length > 0) {
+                    throw new Error(`問題${index + 1}で必要フィールドが不足: ${missingFields.join(', ')}`);
+                }
+
+                // 英語問題の追加検証
+                if (subject === 'english') {
+                    if (!Array.isArray(problem.wrong_options) || problem.wrong_options.length !== 3) {
+                        throw new Error(`問題${index + 1}のwrong_optionsは3個の配列である必要があります`);
+                    }
+                }
+            });
+
+            // 成功統計
+            const generatedCount = batchData.problems.length;
+            const efficiency = Math.round((generatedCount / count) * 100);
+            
+            console.log(`✅ カテゴリ毎一括生成成功: ${subject} ${generatedCount}問 (効率率: ${efficiency}%)`);
+            
+            res.json({
+                success: true,
+                result,
+                metadata: {
+                    subject,
+                    grade,
+                    unit: unit || null,
+                    level,
+                    requested_count: parseInt(count),
+                    generated_count: generatedCount,
+                    efficiency_rate: efficiency,
+                    generation_time: new Date().toISOString(),
+                    cost_optimization: `${Math.floor((20 - 1) / 20 * 100)}%削減（1回のAPI呼び出し）`
+                }
+            });
+
+        } catch (parseError) {
+            console.error('JSON解析エラー (カテゴリ一括生成):', parseError.message);
+            res.status(400).json({
+                success: false,
+                error: 'AI応答の形式が不正です',
+                details: parseError.message,
+                raw_response: result.substring(0, 500) + '...'
+            });
+        }
+
+    } catch (error) {
+        console.error('カテゴリ毎一括生成エラー:', error);
+        if (error instanceof OpenAI.APIError) {
+            return res.status(error.status || 500).json({
+                success: false,
+                error: 'OpenAI APIとの通信中にエラーが発生しました。',
+                details: error.message,
+            });
+        }
+        res.status(500).json({
+            success: false,
+            error: 'カテゴリ毎一括生成中にサーバー内部でエラーが発生しました',
             details: error.message,
         });
     }

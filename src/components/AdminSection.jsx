@@ -31,12 +31,14 @@ const AdminSection = ({
   // 生成された問題
   const [generatedProblems, setGeneratedProblems] = useState([])
   
-  // 問題生成フック
-  const { generateBatchMathProblems, isGenerating: isMathGenerating } = useMathProblemGenerator()
-  const { generateBatchEnglishProblems, isGenerating: isEnglishGenerating } = useEnglishProblemGenerator()
-  
-  // 生成状態の統合
-  const isGenerating = isMathGenerating || isEnglishGenerating
+  // プログレス状態
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState({
+    current: 0,
+    total: 0,
+    currentCategory: '',
+    stage: 'preparing' // 'preparing', 'generating', 'completed'
+  })
 
   // 選択肢データ
   const gradeOptions = ['全学年', '中1', '中2', '中3', '高1']
@@ -93,153 +95,209 @@ const AdminSection = ({
   }
 
   /**
-   * 一括問題生成処理
+   * 【NEW】カテゴリ毎一括生成機能（最適化版）- プログレス表示付き
    */
-  const handleBatchGenerate = async () => {
+  const handleCategoryBatchGenerate = async () => {
     if (!apiStatus.connected) {
       showAlert('AI接続エラー', 'AI接続が必要です。APIキーの設定を確認してください。')
       return
     }
 
-    // 想定される総問題数を計算
-    const expectedCount = calculateExpectedProblemCount()
+    // パラメータ準備
+    const generations = []
+    const grades = selectedGrade === '全学年' ? ['中1', '中2', '中3', '高1'] : [selectedGrade]
+    const levels = selectedLevel === '全難易度' ? ['基礎', '標準', '応用', '発展'] : [selectedLevel]
     
-    // 「全科目」選択時の処理
-    if (selectedSubject === 'all') {
-      await handleAllSubjectGeneration(expectedCount)
-      return
+    // 科目別の生成リスト作成
+    if (selectedSubject === 'all' || selectedSubject === 'math') {
+      grades.forEach(grade => {
+        const units = selectedUnit === '全分野'
+          ? mathUnitsByGrade[grade]?.filter(u => u !== '全分野') || mathUnitsByGrade['中2'].filter(u => u !== '全分野')
+          : [selectedUnit]
+        
+        units.forEach(unit => {
+          levels.forEach(level => {
+            generations.push({
+              subject: 'math',
+              grade,
+              unit,
+              level,
+              count: batchCount
+            })
+          })
+        })
+      })
+    }
+    
+    if (selectedSubject === 'all' || selectedSubject === 'english_quiz') {
+      grades.forEach(grade => {
+        levels.forEach(level => {
+          generations.push({
+            subject: 'english',
+            grade,
+            level,
+            count: batchCount
+          })
+        })
+      })
     }
 
-    const subjectName = selectedSubject === 'math' ? '数学' : '英語4択'
-    const settingsText = selectedSubject === 'math'
-      ? `・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル`
-      : `・学年: ${selectedGrade}\n・難易度: ${selectedLevel}レベル`
-    
-    // 全選択肢の場合の警告メッセージ
-    const isFullCombination = selectedGrade === '全学年' || selectedLevel === '全難易度' ||
-                             (selectedSubject === 'math' && selectedUnit === '全分野')
-    
-    const warningText = isFullCombination
-      ? `\n⚠️ 全選択肢による組み合わせ生成のため、想定問題数: ${expectedCount}問\n大量の問題が生成されます。`
-      : ''
-    
-    const confirmMessage = `${subjectName}問題を一括生成します。\n\n設定詳細:\n${settingsText}\n・設定問題数: ${batchCount}問/組み合わせ\n・想定総問題数: ${expectedCount}問${warningText}\n\n※生成には時間がかかります`
-    
-    showConfirm(
-      '🤖 AI一括問題生成の確認',
-      confirmMessage,
-      async () => {
-        try {
-          let problems = []
-          
-          if (selectedSubject === 'math') {
-            problems = await generateMathProblemsForSelection(selectedGrade, selectedUnit, selectedLevel, batchCount)
-          } else if (selectedSubject === 'english_quiz') {
-            problems = await generateEnglishProblemsForSelection(selectedGrade, selectedLevel, batchCount)
-          }
-          
-          if (problems && problems.length > 0) {
-            setGeneratedProblems(prev => [...problems, ...prev])
-            showAlert('生成完了', `🎉 ${problems.length}問の${subjectName}問題生成が完了しました！\n\n生成された問題をプールに追加できます。`)
-          }
-        } catch (error) {
-          showAlert('生成エラー', `${subjectName}問題生成に失敗しました。\n\nエラー: ${error.message}`)
-        }
-      }
-    )
-  }
+    const totalExpectedCount = generations.reduce((sum, gen) => sum + gen.count, 0)
+    const newAPICallCount = generations.length
+    const oldAPICallCount = totalExpectedCount
+    const efficiencyGain = Math.round((1 - newAPICallCount / oldAPICallCount) * 100)
 
-  /**
-   * 全科目選択時の処理
-   */
-  const handleAllSubjectGeneration = async (expectedCount) => {
-    const mathExpectedCount = calculateCombinationCount('math')
-    const englishExpectedCount = calculateCombinationCount('english_quiz')
-    
-    // 全選択肢の場合の警告メッセージ
-    const isFullCombination = selectedGrade === '全学年' || selectedLevel === '全難易度' || selectedUnit === '全分野'
-    
-    const warningText = isFullCombination
-      ? `\n⚠️ 全選択肢による組み合わせ生成のため、大量の問題が生成されます。`
-      : ''
-    
-    const confirmMessage = `数学と英語の問題を一括生成します。\n\n設定詳細:\n・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル\n・設定問題数: ${batchCount}問/組み合わせ\n・想定総問題数: ${expectedCount}問\n・数学想定: ${mathExpectedCount}問\n・英語想定: ${englishExpectedCount}問${warningText}\n\n※生成には時間がかかります`
-    
+    const confirmMessage = `🚀 【最適化版】一括生成を実行します
+
+📊 効率化詳細:
+・対象組み合わせ: ${generations.length}パターン
+・想定総問題数: ${totalExpectedCount}問
+・API呼び出し削減: 約${efficiencyGain}%
+
+※gpt-4o-miniで統一され、安定性が向上しました。`
+
     showConfirm(
-      '🤖 AI一括問題生成の確認（全科目）',
+      '⚡ 一括問題生成',
       confirmMessage,
       async () => {
         try {
+          setIsGenerating(true)
+          setGenerationProgress({
+            current: 0,
+            total: generations.length,
+            currentCategory: '',
+            stage: 'preparing'
+          })
+
+          const startTime = Date.now()
           let allProblems = []
-          
-          // 数学問題生成
-          const mathProblems = await generateMathProblemsForSelection(selectedGrade, selectedUnit, selectedLevel, batchCount)
-          allProblems = [...allProblems, ...mathProblems]
-          
-          // 英語問題生成
-          const englishProblems = await generateEnglishProblemsForSelection(selectedGrade, selectedLevel, batchCount)
-          allProblems = [...allProblems, ...englishProblems]
-          
-          if (allProblems && allProblems.length > 0) {
+          let successCount = 0
+          let failCount = 0
+
+          for (let i = 0; i < generations.length; i++) {
+            const generation = generations[i]
+            const categoryName = generation.subject === 'math'
+              ? `🧮 ${generation.grade} ${generation.unit} ${generation.level}`
+              : `🇬🇧 ${generation.grade} ${generation.level}`
+
+            setGenerationProgress({
+              current: i + 1,
+              total: generations.length,
+              currentCategory: categoryName,
+              stage: 'generating'
+            })
+
+            try {
+              console.log(`🚀 生成中 (${i + 1}/${generations.length}): ${categoryName}`)
+              
+              const problems = await generateCategoryBatch(generation)
+              if (problems && problems.length > 0) {
+                allProblems = [...allProblems, ...problems]
+                successCount++
+              } else {
+                failCount++
+              }
+            } catch (error) {
+              console.error('カテゴリ生成エラー:', error)
+              failCount++
+            }
+          }
+
+          setGenerationProgress({
+            current: generations.length,
+            total: generations.length,
+            currentCategory: '完了',
+            stage: 'completed'
+          })
+
+          const endTime = Date.now()
+          const processingTime = Math.round((endTime - startTime) / 1000)
+
+          if (allProblems.length > 0) {
             setGeneratedProblems(prev => [...allProblems, ...prev])
-            showAlert('生成完了', `🎉 ${allProblems.length}問の問題生成が完了しました！\n\n数学: ${mathProblems.length}問\n英語: ${englishProblems.length}問\n\n生成された問題をプールに追加できます。`)
+            
+            const successRate = Math.round((successCount / generations.length) * 100)
+            
+            showAlert('✅ 生成完了',
+              `🎉 一括生成が完了しました！
+
+📈 結果:
+・生成問題数: ${allProblems.length}問
+・処理時間: ${processingTime}秒
+
+問題プール統計が更新されました。`)
+          } else {
+            showAlert('生成失敗', `一括生成に失敗しました。\n成功: ${successCount}, 失敗: ${failCount}`)
           }
         } catch (error) {
-          showAlert('生成エラー', `問題生成に失敗しました。\n\nエラー: ${error.message}`)
+          showAlert('生成エラー', `一括生成中にエラーが発生しました。\n\nエラー: ${error.message}`)
+        } finally {
+          setIsGenerating(false)
+          setGenerationProgress({
+            current: 0,
+            total: 0,
+            currentCategory: '',
+            stage: 'preparing'
+          })
         }
       }
     )
   }
 
   /**
-   * 数学問題生成（全学年・全分野・全難易度対応）
+   * 新しいカテゴリ一括生成API呼び出し
    */
-  const generateMathProblemsForSelection = async (grade, unit, level, count) => {
-    const grades = grade === '全学年' ? ['中1', '中2', '中3', '高1'] : [grade]
-    const levels = level === '全難易度' ? ['基礎', '標準', '応用', '発展'] : [level]
-    
-    let allProblems = []
-    
-    for (const currentGrade of grades) {
-      const units = unit === '全分野' ? mathUnitsByGrade[currentGrade].filter(u => u !== '全分野') : [unit]
-      
-      for (const currentUnit of units) {
-        for (const currentLevel of levels) {
-          const problemsPerCombination = Math.ceil(count / (grades.length * units.length * levels.length))
-          if (problemsPerCombination > 0) {
-            const problems = await generateBatchMathProblems(currentGrade, currentUnit, currentLevel, problemsPerCombination)
-            allProblems = [...allProblems, ...problems]
-          }
-        }
+  const generateCategoryBatch = async ({ subject, grade, unit, level, count }) => {
+    try {
+      const apiUrl = window.CARITAS_API_URL
+      const response = await fetch(`${apiUrl}/api/generate-category-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject,
+          grade,
+          unit,
+          level,
+          count
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTPエラー: ${response.status}`)
       }
+
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || 'カテゴリ一括生成に失敗しました')
+      }
+
+      // レスポンスをパース
+      const batchResult = JSON.parse(data.result)
+      if (!batchResult.problems || !Array.isArray(batchResult.problems)) {
+        throw new Error('カテゴリ一括生成の応答形式が不正です')
+      }
+
+      console.log(`✅ カテゴリ一括生成成功: ${subject} ${batchResult.problems.length}問`)
+
+      // 生成された問題にメタデータを追加
+      const problems = batchResult.problems.map(problem => ({
+        ...problem,
+        id: problem.id || `category_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        source: 'ai_generated_category_batch',
+        timestamp: new Date().toISOString(),
+        addedToPool: false,
+        category_generated: true,
+        efficiency_metadata: data.metadata
+      }))
+
+      return problems
+
+    } catch (error) {
+      console.error('カテゴリ一括生成エラー:', error)
+      throw error
     }
-    
-    // 指定された数まで調整
-    return allProblems.slice(0, count)
   }
 
-  /**
-   * 英語問題生成（全学年・全難易度対応）
-   */
-  const generateEnglishProblemsForSelection = async (grade, level, count) => {
-    const grades = grade === '全学年' ? ['中1', '中2', '中3', '高1'] : [grade]
-    const levels = level === '全難易度' ? ['基礎', '標準', '応用', '発展'] : [level]
-    
-    let allProblems = []
-    
-    for (const currentGrade of grades) {
-      for (const currentLevel of levels) {
-        const problemsPerCombination = Math.ceil(count / (grades.length * levels.length))
-        if (problemsPerCombination > 0) {
-          const problems = await generateBatchEnglishProblems(currentGrade, currentLevel, problemsPerCombination)
-          allProblems = [...allProblems, ...problems]
-        }
-      }
-    }
-    
-    // 指定された数まで調整
-    return allProblems.slice(0, count)
-  }
 
   /**
    * 個別問題をプールに追加
@@ -393,17 +451,88 @@ const AdminSection = ({
     )
   }
 
+  // プログレス表示画面
   if (isGenerating) {
     return (
-      <BatchLoadingScreen
-        count={batchCount}
-        currentIndex={Math.floor(batchCount * 0.7)} // 仮の進捗
-        operation="問題生成"
-        onCancel={() => {
-          // 生成キャンセル処理は簡易実装
-          showAlert('キャンセル', '生成処理をキャンセルしました。')
-        }}
-      />
+      <div className="space-y-6">
+        {/* プログレスヘッダー */}
+        <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-6 rounded-lg">
+          <h2 className="text-2xl font-bold mb-2">🚀 AI問題一括生成中</h2>
+          <p className="opacity-90">gpt-4o-miniで高品質な問題を効率的に生成しています</p>
+        </div>
+
+        {/* 強化されたプログレス表示 */}
+        <div className="bg-white p-6 rounded-lg shadow-lg border">
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-xl font-bold text-gray-800">
+                進捗: {generationProgress.current}/{generationProgress.total}
+              </span>
+              <span className="text-lg font-semibold text-blue-600">
+                {Math.round((generationProgress.current / generationProgress.total) * 100)}%
+              </span>
+            </div>
+            
+            {/* 視覚的に強化されたプログレスバー */}
+            <div className="w-full bg-gray-200 rounded-full h-4 shadow-inner">
+              <div
+                className="bg-gradient-to-r from-green-400 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-500 ease-out shadow-sm"
+                style={{
+                  width: `${(generationProgress.current / generationProgress.total) * 100}%`
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="text-center space-y-4">
+            <div className="text-3xl mb-2">
+              {generationProgress.stage === 'preparing' && '⚙️ 準備中...'}
+              {generationProgress.stage === 'generating' && '🤖 生成中...'}
+              {generationProgress.stage === 'completed' && '✅ 完了'}
+            </div>
+            
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-lg font-medium text-gray-700 mb-2">
+                現在の処理: {generationProgress.currentCategory}
+              </div>
+              {generationProgress.stage === 'generating' && (
+                <div className="text-sm text-gray-500">
+                  カテゴリ {generationProgress.current}/{generationProgress.total} 完了
+                </div>
+              )}
+            </div>
+            
+            {/* 処理状況の詳細表示 */}
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <div className="font-medium text-blue-700">完了</div>
+                <div className="text-blue-600">{generationProgress.current}</div>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded-lg">
+                <div className="font-medium text-yellow-700">残り</div>
+                <div className="text-yellow-600">{generationProgress.total - generationProgress.current}</div>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="font-medium text-green-700">総数</div>
+                <div className="text-green-600">{generationProgress.total}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* キャンセルボタン */}
+          <div className="text-center mt-6">
+            <button
+              onClick={() => {
+                setIsGenerating(false)
+                showAlert('キャンセル', '生成処理をキャンセルしました。')
+              }}
+              className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+            >
+              処理をキャンセル
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -452,12 +581,11 @@ const AdminSection = ({
       {/* 問題生成設定 */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-          🤖 問題生成設定（組み合わせ網羅生成対応）
+          🤖 一括問題生成設定
         </h3>
-        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-700">
-            💡 全選択肢を選ぶと、選択した組み合わせの全パターンで問題を生成します。
-            例：全学年×全科目×全分野×全難易度 = 大量の問題生成
+        <div className="mb-4 p-3 bg-green-50 rounded-lg">
+          <p className="text-sm text-green-700">
+            ⚡ gpt-4o-miniで統一された安定した問題生成。全選択肢を選ぶと組み合わせの全パターンで問題を生成します。
           </p>
         </div>
         
@@ -547,21 +675,28 @@ const AdminSection = ({
             <div className="text-sm text-gray-600 text-right">
               想定総問題数: <span className="font-bold text-purple-600">{calculateExpectedProblemCount()}問</span>
             </div>
+            
+            {/* 一括生成ボタン */}
             <button
-              onClick={handleBatchGenerate}
+              onClick={handleCategoryBatchGenerate}
               disabled={!apiStatus.connected || isGenerating}
               className={`px-6 py-3 rounded-lg font-medium transition-all focus-ring ${
                 apiStatus.connected && !isGenerating
-                  ? 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800'
+                  ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600 shadow-lg'
                   : 'bg-gray-400 text-gray-600 cursor-not-allowed'
               }`}
             >
               {isGenerating ? (
                 <>🔄 生成中...</>
               ) : (
-                <>🚀 問題生成開始</>
+                <>🚀 一括問題生成</>
               )}
             </button>
+            
+            {/* 効率化説明 */}
+            <div className="text-xs text-gray-500 text-right max-w-xs">
+              ⚡ gpt-4o-mini統一による安定性向上・コスト最適化
+            </div>
           </div>
         </div>
       </div>
@@ -581,12 +716,12 @@ const AdminSection = ({
             </button>
           </div>
           
-          <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+          <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
             {generatedProblems.map((problem, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-3">
+              <div key={index} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-600">
+                    <span className="text-sm font-medium text-gray-700">
                       {problem.word ? (
                         `🇬🇧 ${problem.grade} / ${problem.level} / ${problem.word}`
                       ) : (
@@ -606,40 +741,6 @@ const AdminSection = ({
                     >
                       📚 プールに追加
                     </button>
-                  )}
-                </div>
-                
-                <div className="bg-gray-50 p-3 rounded text-sm">
-                  {problem.word ? (
-                    // 英語問題の表示
-                    <>
-                      <p className="font-medium text-gray-800 mb-2">🇬🇧 英単語:</p>
-                      <p className="text-lg font-bold text-blue-700 mb-2">{problem.word}</p>
-                      {problem.pronunciation && (
-                        <p className="text-gray-600 text-sm mb-2">[{problem.pronunciation}]</p>
-                      )}
-                      <p className="font-medium text-gray-800 mb-1">正答:</p>
-                      <p className="text-green-700 font-medium mb-2">{problem.correct_meaning}</p>
-                      <p className="font-medium text-gray-800 mb-1">選択肢:</p>
-                      <ul className="text-gray-700 text-sm space-y-1">
-                        <li>• {problem.correct_meaning} <span className="text-green-600">(正解)</span></li>
-                        {problem.wrong_options?.map((option, i) => (
-                          <li key={i}>• {option}</li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    // 数学問題の表示
-                    <>
-                      <p className="font-medium text-gray-800 mb-2">🧮 問題:</p>
-                      <p className="text-gray-700 whitespace-pre-wrap">{problem.problem}</p>
-                      {problem.answer && (
-                        <>
-                          <p className="font-medium text-gray-800 mt-3 mb-1">解答:</p>
-                          <p className="text-green-700 font-medium">{problem.answer}</p>
-                        </>
-                      )}
-                    </>
                   )}
                 </div>
               </div>

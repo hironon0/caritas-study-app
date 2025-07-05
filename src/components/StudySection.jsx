@@ -19,9 +19,9 @@ const StudySection = ({
   const getSubjectTitle = () => {
     switch (selectedSubject) {
       case 'math':
-        return '🤖 AI数学学習'
+        return '🧮 数学学習'
       case 'english_word':
-        return '📚 AI英単語学習'
+        return '🇬🇧 英語4択問題'
       case 'english_quiz':
         return '🇬🇧 英語4択テスト'
       default:
@@ -32,11 +32,11 @@ const StudySection = ({
   const getSubjectBadge = () => {
     switch (selectedSubject) {
       case 'math':
-        return 'AI + プール'
+        return 'プールベース'
       case 'english_word':
-        return 'AI生成'
+        return 'プールベース'
       case 'english_quiz':
-        return 'AI + プール'
+        return 'プールベース'
       default:
         return '学習'
     }

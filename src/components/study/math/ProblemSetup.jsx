@@ -12,7 +12,7 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
   const [selectedGrade, setSelectedGrade] = useState('中2')
   const [selectedUnit, setSelectedUnit] = useState('全分野')
   const [selectedLevel, setSelectedLevel] = useState('基礎')
-  const [usePool, setUsePool] = useState(true) // デフォルトでプール使用
+  // プール使用のみに統一
 
   // 選択肢データ
   const gradeOptions = ['中1', '中2', '中3', '高1']
@@ -39,7 +39,7 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
       grade: selectedGrade,
       unit: selectedUnit,
       level: selectedLevel,
-      usePool,
+      usePool: true, // 常にプール使用
       startTime: new Date()
     }
 
@@ -51,11 +51,7 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
    * ボタンの有効性判定
    */
   const isStartButtonEnabled = () => {
-    if (usePool) {
-      return true // プール使用の場合は常に有効
-    } else {
-      return apiStatus.connected // AI生成の場合はAPI接続が必要
-    }
+    return true // プール使用のみなので常に有効
   }
 
   return (
@@ -63,65 +59,39 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
       {/* 学習設定ヘッダー */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 sm:p-6 rounded-lg">
         <h2 className="text-xl sm:text-2xl font-bold mb-2">🎯 学習設定</h2>
-        <p className="text-sm sm:text-base opacity-90">学年・分野・難易度を選択して学習を開始しましょう</p>
+        <p className="text-sm sm:text-base opacity-90">問題プールから最適な問題を取得して学習を開始しましょう</p>
       </div>
 
-      {/* 問題取得方法選択 */}
+      {/* 問題プール情報 */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
         <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          📚 問題取得方法
+          📚 問題プールシステム
         </h4>
         
-        {/* 切り替えボタン */}
-        <div className="flex flex-col sm:flex-row gap-2 mb-4">
-          <button
-            onClick={() => setUsePool(true)}
-            className={`flex-1 p-3 rounded-lg text-sm font-medium transition-all ${
-              usePool 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            📚 問題プールから取得 
-            {problemPoolStats && (
-              <span className="block text-xs mt-1 opacity-80">
-                {problemPoolStats.total_problems}問題利用可能
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setUsePool(false)}
-            className={`flex-1 p-3 rounded-lg text-sm font-medium transition-all ${
-              !usePool 
-                ? 'bg-green-600 text-white shadow-md' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            🤖 AI新規生成
-            <span className="block text-xs mt-1 opacity-80">
-              {apiStatus.connected ? '利用可能' : '接続エラー'}
-            </span>
-          </button>
-        </div>
-
-        {/* 問題プール統計情報 */}
-        {usePool && problemPoolStats && (
-          <div className="bg-blue-50 p-3 rounded-lg mb-4">
-            <h5 className="font-semibold text-blue-900 mb-2 text-sm">📊 プール統計</h5>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="text-center">
-                <div className="font-bold text-blue-700">{problemPoolStats.total_problems}</div>
-                <div className="text-blue-600">総問題数</div>
+        {/* プール統計情報 */}
+        {problemPoolStats && (
+          <div className="bg-blue-50 p-4 rounded-lg mb-4">
+            <h5 className="font-semibold text-blue-900 mb-3 text-base">📊 利用可能な問題</h5>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+              <div className="bg-white p-3 rounded-lg">
+                <div className="text-2xl font-bold text-blue-700">{problemPoolStats.total_problems}</div>
+                <div className="text-sm text-blue-600">総問題数</div>
               </div>
               {Object.entries(problemPoolStats.problems_by_level || {}).map(([level, count]) => (
-                <div key={level} className="text-center">
-                  <div className="font-bold text-blue-700">{count}</div>
-                  <div className="text-blue-600">{level}</div>
+                <div key={level} className="bg-white p-3 rounded-lg">
+                  <div className="text-xl font-bold text-blue-700">{count}</div>
+                  <div className="text-sm text-blue-600">{level}</div>
                 </div>
               ))}
             </div>
           </div>
         )}
+        
+        <div className="p-3 bg-green-50 rounded-lg">
+          <p className="text-sm text-green-700">
+            ⚡ 最適化システム: gpt-4o-miniで生成された高品質な問題を即座に取得します
+          </p>
+        </div>
 
         {/* 学習設定グリッド */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -173,17 +143,11 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
         
         {/* ステータス表示 */}
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <div className="flex items-center gap-1">
-            <div className={`w-2 h-2 rounded-full ${apiStatus.connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-gray-600">
-              AI: {apiStatus.checking ? '...' : (apiStatus.connected ? 'OK' : 'NG')}
-            </span>
-          </div>
           {problemPoolStats && (
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
               <span className="text-gray-600">
-                プール: {problemPoolStats.total_problems}問題
+                プール: {problemPoolStats.total_problems}問題利用可能
               </span>
             </div>
           )}
@@ -192,11 +156,9 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
 
       {/* 学習開始セクション */}
       <div className="text-center bg-gradient-to-r from-blue-50 to-purple-50 p-4 sm:p-8 rounded-lg">
-        <div className="text-4xl sm:text-6xl mb-4">
-          {usePool ? '📚' : '🤖'}
-        </div>
+        <div className="text-4xl sm:text-6xl mb-4">📚</div>
         <h3 className="text-lg sm:text-2xl font-bold text-gray-800 mb-2 sm:mb-4">
-          {usePool ? '問題プールシステム' : 'AI問題生成システム'}
+          問題プールシステム
         </h3>
         <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
           設定: {selectedGrade} | {selectedUnit} | {selectedLevel}レベル
@@ -214,22 +176,16 @@ const ProblemSetup = ({ apiStatus, problemPoolStats, onStartStudy }) => {
         >
           🚀 学習開始
           <span className="block text-sm font-normal mt-1 opacity-80">
-            {usePool ? `📚 プールから継続出題` : `🤖 AI新規生成で継続出題`}
+            📚 プールから継続出題
           </span>
         </button>
         
         {/* 説明テキスト */}
         <p className="text-xs sm:text-sm text-gray-500 mt-3 sm:mt-4">
-          {usePool ? (
-            problemPoolStats ? (
-              `${problemPoolStats.total_problems}問題から即座に取得します`
-            ) : (
-              '問題プールから瞬時に問題を取得'
-            )
+          {problemPoolStats ? (
+            `${problemPoolStats.total_problems}問題から即座に取得します`
           ) : (
-            apiStatus.connected 
-              ? '約3-5秒で高品質な問題と詳細解説を生成'
-              : 'サーバーのAPIキー設定を確認してください'
+            '問題プールから瞬時に問題を取得'
           )}
         </p>
       </div>

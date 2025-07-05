@@ -34,7 +34,7 @@ const EnglishStudy = () => {
     const { testConnection } = useApiConnection();
 
     // 4択の選択肢をシャッフルして作成
-    const createChoices = useCallback((problem) => {
+    const createChoices = (problem) => {
         if (!problem || !problem.wrong_options || !problem.correct_meaning) {
             return [];
         }
@@ -51,7 +51,7 @@ const EnglishStudy = () => {
         }
         
         return allChoices;
-    }, []);
+    };
 
     // 新しい問題を取得
     const fetchNewProblem = useCallback(async () => {
@@ -133,7 +133,7 @@ const EnglishStudy = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [settings.grade, settings.level, studyStats.studiedWords, testConnection, createChoices]);
+    }, [settings.grade, settings.level, studyStats.studiedWords, testConnection]);
 
     // 回答処理
     const handleAnswerSelect = (choiceIndex) => {

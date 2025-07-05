@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useMathProblemGenerator } from '../../hooks/useMathProblemGenerator'
 import ProblemSetup from './math/ProblemSetup'
 import ProblemDisplay from './math/ProblemDisplay'
 import LoadingScreen from '../ui/LoadingScreen'
@@ -33,9 +32,6 @@ const MathStudy = ({
   // 解説表示状態
   const [showSteps, setShowSteps] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
-
-  // 数学問題生成フック
-  const { generateMathProblem } = useMathProblemGenerator()
 
   // デバッグ：状態変化を監視
   useEffect(() => {
@@ -106,13 +102,8 @@ const MathStudy = ({
     setProblemCount(prev => prev + 1)
 
     try {
-      let problem = null
-
-      if (settings.usePool) {
-        problem = await getProblemFromPool(settings.grade, settings.unit, settings.level)
-      } else {
-        problem = await generateMathProblem(settings.grade, settings.unit, settings.level)
-      }
+      // プールからのみ問題取得（統一化）
+      const problem = await getProblemFromPool(settings.grade, settings.unit, settings.level)
 
       if (problem) {
         setCurrentProblem(problem)
@@ -172,9 +163,9 @@ const MathStudy = ({
     console.log('🚨 [MathStudy] ローディング画面をレンダリング')
     return (
       <LoadingScreen
-        message={studySettings?.usePool ? '問題プールから取得中' : 'AIが高品質な問題を生成中'}
-        subMessage={studySettings?.usePool ? '問題プールから最適な問題を選択しています' : '体系数学に準拠した思考力問題を作成しています'}
-        icon={studySettings?.usePool ? '📚' : '🤖'}
+        message="問題プールから取得中"
+        subMessage="問題プールから最適な問題を選択しています"
+        icon="📚"
         showCancel={studyMode === 'studying'}
         onCancel={backToSetup}
       />
