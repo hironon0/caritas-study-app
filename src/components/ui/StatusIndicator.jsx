@@ -51,14 +51,14 @@ const StatusIndicator = ({ apiStatus, problemPoolStats, className = '' }) => {
       {/* 問題プール統計 */}
       {problemPoolStats && (
         <div className="text-xs text-blue-600 mt-1">
-          📚 問題プール: {problemPoolStats.total_problems}問題利用可能
-          {problemPoolStats.problems_by_level && (
-            <span className="ml-2">
-              (基礎: {problemPoolStats.problems_by_level.基礎 || 0}, 
-              標準: {problemPoolStats.problems_by_level.標準 || 0}, 
-              応用: {problemPoolStats.problems_by_level.応用 || 0}, 
-              発展: {problemPoolStats.problems_by_level.発展 || 0})
+          📚 問題プール:
+          {problemPoolStats.problems_by_subject ? (
+            <span className="ml-1">
+              数学: {problemPoolStats.problems_by_subject.math || 0}問題、
+              英語: {problemPoolStats.problems_by_subject.english || 0}問題
             </span>
+          ) : (
+            <span className="ml-1">{problemPoolStats.total_problems}問題利用可能</span>
           )}
         </div>
       )}

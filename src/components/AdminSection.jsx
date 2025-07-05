@@ -22,10 +22,10 @@ const AdminSection = ({
   onNavigateToMenu
 }) => {
   // 生成設定
-  const [selectedSubject, setSelectedSubject] = useState('math')
-  const [selectedGrade, setSelectedGrade] = useState('中2')
+  const [selectedSubject, setSelectedSubject] = useState('all')
+  const [selectedGrade, setSelectedGrade] = useState('全学年')
   const [selectedUnit, setSelectedUnit] = useState('全分野')
-  const [selectedLevel, setSelectedLevel] = useState('基礎')
+  const [selectedLevel, setSelectedLevel] = useState('全難易度')
   const [batchCount, setBatchCount] = useState(5)
 
   // 生成された問題
@@ -39,19 +39,58 @@ const AdminSection = ({
   const isGenerating = isMathGenerating || isEnglishGenerating
 
   // 選択肢データ
-  const gradeOptions = ['中1', '中2', '中3', '高1']
+  const gradeOptions = ['全学年', '中1', '中2', '中3', '高1']
+  const subjectOptions = [
+    { value: 'all', label: '🎯 全科目' },
+    { value: 'math', label: '🧮 数学問題' },
+    { value: 'english_quiz', label: '🇬🇧 英語4択問題' }
+  ]
   const mathUnitsByGrade = {
+    '全学年': ['全分野', '正負の数', '文字式', '一次方程式', '比例・反比例', '式の計算', '連立方程式', '一次関数', '図形の性質', '式の展開・因数分解', '平方根', '二次方程式', '二次関数', '数と式', '集合と命題', '図形と計量'],
     '中1': ['全分野', '正負の数', '文字式', '一次方程式', '比例・反比例'],
     '中2': ['全分野', '式の計算', '連立方程式', '一次関数', '図形の性質'],
     '中3': ['全分野', '式の展開・因数分解', '平方根', '二次方程式', '二次関数'],
     '高1': ['全分野', '数と式', '集合と命題', '二次関数', '図形と計量']
   }
   const levelOptions = [
+    { value: '全難易度', description: '全ての難易度レベルの問題' },
     { value: '基礎', description: '基本的な計算・公式の確認' },
     { value: '標準', description: '定期テスト・教科書レベル' },
     { value: '応用', description: '思考力・複合問題' },
     { value: '発展', description: '入試レベル・高度な問題' }
   ]
+
+  /**
+   * 想定される総問題数を計算
+   */
+  const calculateExpectedProblemCount = () => {
+    if (selectedSubject === 'all') {
+      return calculateCombinationCount('math') + calculateCombinationCount('english_quiz')
+    }
+    return calculateCombinationCount(selectedSubject)
+  }
+
+  /**
+   * 組み合わせ数を計算
+   */
+  const calculateCombinationCount = (subject) => {
+    const grades = selectedGrade === '全学年' ? ['中1', '中2', '中3', '高1'] : [selectedGrade]
+    const levels = selectedLevel === '全難易度' ? ['基礎', '標準', '応用', '発展'] : [selectedLevel]
+    
+    if (subject === 'math') {
+      let totalUnits = 0
+      for (const grade of grades) {
+        const units = selectedUnit === '全分野'
+          ? mathUnitsByGrade[grade].filter(u => u !== '全分野')
+          : [selectedUnit]
+        totalUnits += units.length
+      }
+      return totalUnits * levels.length * batchCount
+    } else if (subject === 'english_quiz') {
+      return grades.length * levels.length * batchCount
+    }
+    return 0
+  }
 
   /**
    * 一括問題生成処理
@@ -62,23 +101,41 @@ const AdminSection = ({
       return
     }
 
+    // 想定される総問題数を計算
+    const expectedCount = calculateExpectedProblemCount()
+    
+    // 「全科目」選択時の処理
+    if (selectedSubject === 'all') {
+      await handleAllSubjectGeneration(expectedCount)
+      return
+    }
+
     const subjectName = selectedSubject === 'math' ? '数学' : '英語4択'
     const settingsText = selectedSubject === 'math'
       ? `・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル`
       : `・学年: ${selectedGrade}\n・難易度: ${selectedLevel}レベル`
     
-    const confirmMessage = `${batchCount}問の${subjectName}問題を一括生成します。\n\n設定詳細:\n${settingsText}\n・生成数: ${batchCount}問\n\n※一度に${batchCount}問を生成するため、通常より時間がかかります`
+    // 全選択肢の場合の警告メッセージ
+    const isFullCombination = selectedGrade === '全学年' || selectedLevel === '全難易度' ||
+                             (selectedSubject === 'math' && selectedUnit === '全分野')
+    
+    const warningText = isFullCombination
+      ? `\n⚠️ 全選択肢による組み合わせ生成のため、想定問題数: ${expectedCount}問\n大量の問題が生成されます。`
+      : ''
+    
+    const confirmMessage = `${subjectName}問題を一括生成します。\n\n設定詳細:\n${settingsText}\n・設定問題数: ${batchCount}問/組み合わせ\n・想定総問題数: ${expectedCount}問${warningText}\n\n※生成には時間がかかります`
     
     showConfirm(
       '🤖 AI一括問題生成の確認',
       confirmMessage,
       async () => {
         try {
-          let problems
+          let problems = []
+          
           if (selectedSubject === 'math') {
-            problems = await generateBatchMathProblems(selectedGrade, selectedUnit, selectedLevel, batchCount)
+            problems = await generateMathProblemsForSelection(selectedGrade, selectedUnit, selectedLevel, batchCount)
           } else if (selectedSubject === 'english_quiz') {
-            problems = await generateBatchEnglishProblems(selectedGrade, selectedLevel, batchCount)
+            problems = await generateEnglishProblemsForSelection(selectedGrade, selectedLevel, batchCount)
           }
           
           if (problems && problems.length > 0) {
@@ -90,6 +147,98 @@ const AdminSection = ({
         }
       }
     )
+  }
+
+  /**
+   * 全科目選択時の処理
+   */
+  const handleAllSubjectGeneration = async (expectedCount) => {
+    const mathExpectedCount = calculateCombinationCount('math')
+    const englishExpectedCount = calculateCombinationCount('english_quiz')
+    
+    // 全選択肢の場合の警告メッセージ
+    const isFullCombination = selectedGrade === '全学年' || selectedLevel === '全難易度' || selectedUnit === '全分野'
+    
+    const warningText = isFullCombination
+      ? `\n⚠️ 全選択肢による組み合わせ生成のため、大量の問題が生成されます。`
+      : ''
+    
+    const confirmMessage = `数学と英語の問題を一括生成します。\n\n設定詳細:\n・学年: ${selectedGrade}\n・分野: ${selectedUnit}\n・難易度: ${selectedLevel}レベル\n・設定問題数: ${batchCount}問/組み合わせ\n・想定総問題数: ${expectedCount}問\n・数学想定: ${mathExpectedCount}問\n・英語想定: ${englishExpectedCount}問${warningText}\n\n※生成には時間がかかります`
+    
+    showConfirm(
+      '🤖 AI一括問題生成の確認（全科目）',
+      confirmMessage,
+      async () => {
+        try {
+          let allProblems = []
+          
+          // 数学問題生成
+          const mathProblems = await generateMathProblemsForSelection(selectedGrade, selectedUnit, selectedLevel, batchCount)
+          allProblems = [...allProblems, ...mathProblems]
+          
+          // 英語問題生成
+          const englishProblems = await generateEnglishProblemsForSelection(selectedGrade, selectedLevel, batchCount)
+          allProblems = [...allProblems, ...englishProblems]
+          
+          if (allProblems && allProblems.length > 0) {
+            setGeneratedProblems(prev => [...allProblems, ...prev])
+            showAlert('生成完了', `🎉 ${allProblems.length}問の問題生成が完了しました！\n\n数学: ${mathProblems.length}問\n英語: ${englishProblems.length}問\n\n生成された問題をプールに追加できます。`)
+          }
+        } catch (error) {
+          showAlert('生成エラー', `問題生成に失敗しました。\n\nエラー: ${error.message}`)
+        }
+      }
+    )
+  }
+
+  /**
+   * 数学問題生成（全学年・全分野・全難易度対応）
+   */
+  const generateMathProblemsForSelection = async (grade, unit, level, count) => {
+    const grades = grade === '全学年' ? ['中1', '中2', '中3', '高1'] : [grade]
+    const levels = level === '全難易度' ? ['基礎', '標準', '応用', '発展'] : [level]
+    
+    let allProblems = []
+    
+    for (const currentGrade of grades) {
+      const units = unit === '全分野' ? mathUnitsByGrade[currentGrade].filter(u => u !== '全分野') : [unit]
+      
+      for (const currentUnit of units) {
+        for (const currentLevel of levels) {
+          const problemsPerCombination = Math.ceil(count / (grades.length * units.length * levels.length))
+          if (problemsPerCombination > 0) {
+            const problems = await generateBatchMathProblems(currentGrade, currentUnit, currentLevel, problemsPerCombination)
+            allProblems = [...allProblems, ...problems]
+          }
+        }
+      }
+    }
+    
+    // 指定された数まで調整
+    return allProblems.slice(0, count)
+  }
+
+  /**
+   * 英語問題生成（全学年・全難易度対応）
+   */
+  const generateEnglishProblemsForSelection = async (grade, level, count) => {
+    const grades = grade === '全学年' ? ['中1', '中2', '中3', '高1'] : [grade]
+    const levels = level === '全難易度' ? ['基礎', '標準', '応用', '発展'] : [level]
+    
+    let allProblems = []
+    
+    for (const currentGrade of grades) {
+      for (const currentLevel of levels) {
+        const problemsPerCombination = Math.ceil(count / (grades.length * levels.length))
+        if (problemsPerCombination > 0) {
+          const problems = await generateBatchEnglishProblems(currentGrade, currentLevel, problemsPerCombination)
+          allProblems = [...allProblems, ...problems]
+        }
+      }
+    }
+    
+    // 指定された数まで調整
+    return allProblems.slice(0, count)
   }
 
   /**
@@ -303,8 +452,14 @@ const AdminSection = ({
       {/* 問題生成設定 */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow border">
         <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-          🤖 問題生成設定
+          🤖 問題生成設定（組み合わせ網羅生成対応）
         </h3>
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-700">
+            💡 全選択肢を選ぶと、選択した組み合わせの全パターンで問題を生成します。
+            例：全学年×全科目×全分野×全難易度 = 大量の問題生成
+          </p>
+        </div>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
@@ -314,13 +469,14 @@ const AdminSection = ({
               onChange={(e) => setSelectedSubject(e.target.value)}
               className="w-full p-2 sm:p-3 border border-purple-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring bg-white"
             >
-              <option value="math">🧮 数学問題</option>
-              <option value="english_quiz">🇬🇧 英語4択問題</option>
+              {subjectOptions.map(subject => (
+                <option key={subject.value} value={subject.value}>{subject.label}</option>
+              ))}
             </select>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">学年</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">🎓 学年</label>
             <select
               value={selectedGrade}
               onChange={(e) => setSelectedGrade(e.target.value)}
@@ -332,32 +488,26 @@ const AdminSection = ({
             </select>
           </div>
           
-          {selectedSubject === 'math' && (
+          {(selectedSubject === 'math' || selectedSubject === 'all') && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">分野</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">📖 分野</label>
               <select
                 value={selectedUnit}
                 onChange={(e) => setSelectedUnit(e.target.value)}
                 className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring"
               >
-                {mathUnitsByGrade[selectedGrade].map(unit => (
+                {mathUnitsByGrade[selectedGrade]?.map(unit => (
+                  <option key={unit} value={unit}>{unit}</option>
+                )) || mathUnitsByGrade['中2'].map(unit => (
                   <option key={unit} value={unit}>{unit}</option>
                 ))}
               </select>
             </div>
           )}
           
-          {selectedSubject === 'english_quiz' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">教材</label>
-              <div className="w-full p-2 sm:p-3 border border-gray-200 rounded-md bg-green-50 text-sm text-green-700 font-medium">
-                Progress 21準拠
-              </div>
-            </div>
-          )}
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">難易度</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">⭐ 難易度</label>
             <select
               value={selectedLevel}
               onChange={(e) => setSelectedLevel(e.target.value)}
@@ -375,33 +525,44 @@ const AdminSection = ({
         {/* 生成数設定と実行ボタン */}
         <div className="flex flex-col sm:flex-row gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">生成数</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              生成数（組み合わせ毎）
+            </label>
             <select
               value={batchCount}
               onChange={(e) => setBatchCount(parseInt(e.target.value))}
               className="w-full p-2 sm:p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm focus-ring"
             >
+              <option value={1}>1問</option>
+              <option value={2}>2問</option>
+              <option value={3}>3問</option>
               <option value={5}>5問</option>
               <option value={10}>10問</option>
               <option value={20}>20問</option>
+              <option value={50}>50問</option>
             </select>
           </div>
           
-          <button
-            onClick={handleBatchGenerate}
-            disabled={!apiStatus.connected || isGenerating}
-            className={`px-6 py-3 rounded-lg font-medium transition-all focus-ring ${
-              apiStatus.connected && !isGenerating
-                ? 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800' 
-                : 'bg-gray-400 text-gray-600 cursor-not-allowed'
-            }`}
-          >
-            {isGenerating ? (
-              <>🔄 {batchCount}問を一括生成中...</>
-            ) : (
-              <>🚀 {batchCount}問を一括生成</>
-            )}
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-sm text-gray-600 text-right">
+              想定総問題数: <span className="font-bold text-purple-600">{calculateExpectedProblemCount()}問</span>
+            </div>
+            <button
+              onClick={handleBatchGenerate}
+              disabled={!apiStatus.connected || isGenerating}
+              className={`px-6 py-3 rounded-lg font-medium transition-all focus-ring ${
+                apiStatus.connected && !isGenerating
+                  ? 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800'
+                  : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+              }`}
+            >
+              {isGenerating ? (
+                <>🔄 生成中...</>
+              ) : (
+                <>🚀 問題生成開始</>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

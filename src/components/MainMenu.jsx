@@ -1,6 +1,7 @@
 import React from 'react'
 import StatusIndicator from './ui/StatusIndicator'
 import FeatureCard from './ui/FeatureCard'
+import { useStudyProgress } from '../hooks/useLocalStorage'
 
 /**
  * メインメニューコンポーネント
@@ -19,6 +20,14 @@ const MainMenu = ({
   onNavigateToStudy,
   onNavigateToAdmin
 }) => {
+  // LocalStorageから統計情報を取得
+  const { getStats: getMathStats } = useStudyProgress('math')
+  const { getStats: getEnglishStats } = useStudyProgress('english')
+  const { getStats: getEnglishWordStats } = useStudyProgress('english_word')
+
+  const mathStats = getMathStats()
+  const englishStats = getEnglishStats()
+  const englishWordStats = getEnglishWordStats()
   const browserInfo = () => {
     const userAgent = navigator.userAgent
     if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) {
@@ -59,13 +68,6 @@ const MainMenu = ({
           </div>
         </div>
 
-        {/* API状態表示 */}
-        <StatusIndicator
-          apiStatus={apiStatus}
-          problemPoolStats={problemPoolStats}
-          className="mb-4 sm:mb-6"
-        />
-
         {/* Safari/Brave警告 */}
         {!apiStatus.connected && isSafariOrBrave && (
           <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mb-6">
@@ -88,109 +90,95 @@ const MainMenu = ({
           </div>
         )}
 
-        {/* 機能カードグリッド */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {/* 数学学習 */}
-          <FeatureCard
-            title="数学（AI + プール）"
-            subtitle="体系数学準拠 + AI問題生成"
-            icon="🧮"
-            borderColor="border-blue-500"
-            bgColor="bg-blue-100"
-            features={[
-              '🤖 AI問題生成（思考力重視）',
-              '📚 問題プール（即座に取得）',
-              '📝 詳細解説（段階的説明）',
-              '🎯 完全対応（学年・分野・難易度）'
-            ]}
-            stats={[
-              { label: '解答済み', value: `${mathProgress.solved} 問題`, color: 'text-blue-600' },
-              ...(problemPoolStats ? [{ label: 'プール', value: problemPoolStats.total_problems, color: 'text-green-600' }] : [])
-            ]}
-            onClick={() => onNavigateToStudy('math')}
-          />
-
-          {/* 英語4択テスト */}
-          <FeatureCard
-            title="英語4択テスト"
-            subtitle="Progress 21準拠 + AI問題生成"
-            icon="🇬🇧"
-            borderColor="border-indigo-500"
-            bgColor="bg-indigo-100"
-            features={[
-              '🤖 AI生成4択問題（思考力重視）',
-              '📚 プール機能（復習効率化）',
-              '🎯 正答率追跡（学習分析）',
-              '🔄 間違い単語管理（復習支援）'
-            ]}
-            stats={[
-              { label: '4択形式', value: 'テスト対策', color: 'text-indigo-600' }
-            ]}
-            onClick={() => onNavigateToStudy('english_quiz')}
-          />
-
-          {/* 管理画面 */}
-          <FeatureCard
-            title="問題プール管理"
-            subtitle="AI問題生成 → プール追加"
-            icon="⚙️"
-            borderColor="border-purple-500"
-            bgColor="bg-purple-100"
-            features={[
-              '🤖 AI問題を一括生成（1〜10問）',
-              '📚 プールに一括追加（データベース構築）',
-              '🎯 学年・分野・難易度を指定',
-              '📊 統計情報でプール状況確認'
-            ]}
-            stats={[
-              { label: '管理者向け機能', value: '問題データベース構築', color: 'text-purple-600' }
-            ]}
-            onClick={onNavigateToAdmin}
-          />
-
-          {/* 英単語学習 */}
-          <FeatureCard
-            title="AI英単語学習"
-            subtitle="Progress 21準拠 + 語源解説"
-            icon="📚"
-            borderColor="border-green-500"
-            bgColor="bg-green-100"
-            features={[
-              '🧠 文脈で覚える例文自動生成',
-              '🗣️ 発音・語源まで徹底解説',
-              '📈 レベル別に効率よく学習',
-              '🔄 忘却曲線に基づいた復習'
-            ]}
-            stats={[
-              { label: '学習済み', value: `${englishProgress.words} 単語`, color: 'text-green-600' }
-            ]}
-            onClick={() => onNavigateToStudy('english_word')}
-          />
-        </div>
-
-        {/* 特徴説明 */}
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg mt-6 sm:mt-8">
-          <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 text-center">
-            🤖 AI学習ツールの特徴
+        {/* 数学学習セクション */}
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+            🧮 数学学習
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
-            <div className="bg-purple-50 p-3 sm:p-4 rounded-lg text-center">
-              <div className="text-xl sm:text-2xl mb-2">🧠</div>
-              <h4 className="font-bold text-purple-900 mb-1 text-sm">高度な問題生成</h4>
-              <p className="text-purple-700 text-xs sm:text-sm">思考力を要する良質な問題</p>
-            </div>
-            <div className="bg-blue-50 p-3 sm:p-4 rounded-lg text-center">
-              <div className="text-xl sm:text-2xl mb-2">📚</div>
-              <h4 className="font-bold text-blue-900 mb-1 text-sm">問題プール + AI</h4>
-              <p className="text-blue-700 text-xs sm:text-sm">即座に取得 + オーダーメイド</p>
-            </div>
-            <div className="bg-green-50 p-3 sm:p-4 rounded-lg text-center">
-              <div className="text-xl sm:text-2xl mb-2">🎯</div>
-              <h4 className="font-bold text-green-900 mb-1 text-sm">完全カスタマイズ</h4>
-              <p className="text-green-700 text-xs sm:text-sm">個人レベルに最適化</p>
-            </div>
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
+            <FeatureCard
+              title="数学（AI + プール）"
+              subtitle="体系数学準拠 + AI問題生成"
+              icon="🧮"
+              borderColor="border-blue-500"
+              bgColor="bg-blue-100"
+              onClick={() => onNavigateToStudy('math')}
+              stats={[
+                { label: '問題数', value: problemPoolStats?.problems_by_subject?.math || 0, color: 'text-blue-600' },
+                { label: '回答数', value: mathStats.totalProblems, color: 'text-blue-600' },
+                { label: '正解数', value: Math.round(mathStats.totalProblems * mathStats.accuracy), color: 'text-green-600' },
+                { label: '正解率', value: `${Math.round(mathStats.accuracy * 100)}%`, color: 'text-green-600' }
+              ]}
+            />
           </div>
         </div>
+
+        {/* 英語学習セクション */}
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+            🇬🇧 英語学習
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {/* 英語4択テスト */}
+            <FeatureCard
+              title="英語4択テスト"
+              subtitle="Progress 21準拠 + AI問題生成"
+              icon="🇬🇧"
+              borderColor="border-indigo-500"
+              bgColor="bg-indigo-100"
+              onClick={() => onNavigateToStudy('english_quiz')}
+              stats={[
+                { label: '問題数', value: problemPoolStats?.problems_by_subject?.english || 0, color: 'text-indigo-600' },
+                { label: '回答数', value: englishStats.totalProblems, color: 'text-indigo-600' },
+                { label: '正解数', value: Math.round(englishStats.totalProblems * englishStats.accuracy), color: 'text-green-600' },
+                { label: '正解率', value: `${Math.round(englishStats.accuracy * 100)}%`, color: 'text-green-600' }
+              ]}
+            />
+
+            {/* AI英単語学習 */}
+            <FeatureCard
+              title="AI英単語学習"
+              subtitle="Progress 21準拠 + 語源解説"
+              icon="📚"
+              borderColor="border-green-500"
+              bgColor="bg-green-100"
+              onClick={() => onNavigateToStudy('english_word')}
+              stats={[
+                { label: '学習済み単語数', value: englishWordStats.totalProblems, color: 'text-green-600' },
+                { label: '正解率', value: `${Math.round(englishWordStats.accuracy * 100)}%`, color: 'text-green-600' }
+              ]}
+            />
+          </div>
+        </div>
+
+        {/* 問題プール管理セクション */}
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-lg mb-6 sm:mb-8">
+          <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 text-center">
+            ⚙️ 問題プール管理
+          </h3>
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
+            <FeatureCard
+              title="問題プール管理"
+              subtitle="AI問題生成 → プール追加"
+              icon="⚙️"
+              borderColor="border-purple-500"
+              bgColor="bg-purple-100"
+              onClick={onNavigateToAdmin}
+              stats={[
+                { label: '総問題数', value: (problemPoolStats?.problems_by_subject?.math || 0) + (problemPoolStats?.problems_by_subject?.english || 0), color: 'text-purple-600' },
+                { label: '数学', value: problemPoolStats?.problems_by_subject?.math || 0, color: 'text-blue-600' },
+                { label: '英語', value: problemPoolStats?.problems_by_subject?.english || 0, color: 'text-indigo-600' }
+              ]}
+            />
+          </div>
+        </div>
+
+        {/* API状態表示 */}
+        <StatusIndicator
+          apiStatus={apiStatus}
+          problemPoolStats={problemPoolStats}
+          className="mt-6 sm:mt-8"
+        />
       </div>
     </div>
   )

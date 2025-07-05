@@ -361,13 +361,15 @@ app.post('/api/generate-math', async (req, res) => {
         console.log('📝 数学問題生成リクエスト (OpenAI)');
         console.log('リクエストボディ:', JSON.stringify(req.body, null, 2));
 
-        // OpenAI APIの要求に合わせて「json」を含むプロンプトに修正
+        // JSON形式の安定性を向上させるためのプロンプト改善
         const enhancedPrompt = `${prompt}
 
-回答は必ずJSON形式で出力してください。以下の構造に従ってください:
+**重要: 回答は必ず有効なJSON形式で出力してください。**
+
+以下の構造に厳密に従ってください。すべてのフィールドは必須です:
 {
   "grade": "学年",
-  "level": "難易度", 
+  "level": "難易度",
   "unit": "単元名",
   "problem": "問題文",
   "steps": [
@@ -382,7 +384,13 @@ app.post('/api/generate-math', async (req, res) => {
   "hint": "ヒント",
   "difficulty_analysis": "難易度分析",
   "learning_point": "学習ポイント"
-}`;
+}
+
+注意事項:
+- 文字列内に改行が含まれる場合は\\nを使用してください
+- ダブルクォーテーションを含む場合は\\\"でエスケープしてください
+- JSON以外のテキストは出力しないでください
+- 必ず有効なJSON形式で回答してください`;
 
         const messages = [{
             role: 'user',
@@ -390,13 +398,29 @@ app.post('/api/generate-math', async (req, res) => {
         }];
         console.log('OpenAIへのリクエスト:', JSON.stringify(messages, null, 2));
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 3000,
-            temperature: 0.7,
-            response_format: { type: "json_object" },
-            messages: messages,
-        });
+        // フォールバック機能付きのAI呼び出し
+        let response;
+        try {
+            console.log('🚀 gpt-3.5-turbo で問題生成を試行中...');
+            response = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                max_tokens: 3000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-3.5-turbo 成功');
+        } catch (turboError) {
+            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
+            response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                max_tokens: 3000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-4o-mini フォールバック成功');
+        }
 
         const result = response.choices[0].message.content;
 
@@ -547,13 +571,29 @@ app.post('/api/generate-math-batch', async (req, res) => {
             content: prompt,
         }];
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 16000,  // 複数問題のため大幅に増加
-            temperature: 0.7,
-            response_format: { type: "json_object" },
-            messages: messages,
-        });
+        // フォールバック機能付きのAI呼び出し
+        let response;
+        try {
+            console.log('🚀 gpt-3.5-turbo で一括問題生成を試行中...');
+            response = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                max_tokens: 16000,  // 複数問題のため大幅に増加
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-3.5-turbo 成功');
+        } catch (turboError) {
+            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
+            response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                max_tokens: 16000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-4o-mini フォールバック成功');
+        }
 
         const result = response.choices[0].message.content;
 
@@ -631,10 +671,12 @@ app.post('/api/generate-english', async (req, res) => {
         console.log('📝 英語単語生成リクエスト (OpenAI)');
         console.log('リクエストボディ:', JSON.stringify(req.body, null, 2));
 
-        // OpenAI APIの要求に合わせて「json」を含むプロンプトに修正
+        // JSON形式の安定性を向上させるためのプロンプト改善
         const enhancedPrompt = `${prompt}
 
-回答は必ずJSON形式で出力してください。以下の構造に従ってください:
+**重要: 回答は必ず有効なJSON形式で出力してください。**
+
+以下の構造に厳密に従ってください。すべてのフィールドは必須です:
 {
   "word": "英単語",
   "meaning": "日本語での意味",
@@ -645,7 +687,13 @@ app.post('/api/generate-english', async (req, res) => {
       "translation": "日本語訳"
     }
   ]
-}`;
+}
+
+注意事項:
+- 文字列内に改行が含まれる場合は\\nを使用してください
+- ダブルクォーテーションを含む場合は\\\"でエスケープしてください
+- JSON以外のテキストは出力しないでください
+- 必ず有効なJSON形式で回答してください`;
 
         const messages = [{
             role: 'user',
@@ -653,13 +701,29 @@ app.post('/api/generate-english', async (req, res) => {
         }];
         console.log('OpenAIへのリクエスト:', JSON.stringify(messages, null, 2));
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 2000,
-            temperature: 0.7,
-            response_format: { type: "json_object" },
-            messages: messages,
-        });
+        // フォールバック機能付きのAI呼び出し
+        let response;
+        try {
+            console.log('🚀 gpt-3.5-turbo で英語単語生成を試行中...');
+            response = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-3.5-turbo 成功');
+        } catch (turboError) {
+            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
+            response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-4o-mini フォールバック成功');
+        }
 
         const result = response.choices[0].message.content;
 
@@ -766,6 +830,13 @@ app.post('/api/generate-english-quiz', async (req, res) => {
   "learning_point": "この単語の学習ポイント"
 }
 
+**重要事項:**
+- 回答は必ず有効なJSON形式で出力してください
+- 文字列内に改行が含まれる場合は\\nを使用してください
+- ダブルクォーテーションを含む場合は\\\"でエスケープしてください
+- JSON以外のテキストは出力しないでください
+- すべてのフィールドが必須です
+
 DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
         `;
 
@@ -774,13 +845,29 @@ DO NOT OUTPUT ANYTHING OTHER THAN VALID JSON.
             content: prompt,
         }];
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 2000,
-            temperature: 0.7,
-            response_format: { type: "json_object" },
-            messages: messages,
-        });
+        // フォールバック機能付きのAI呼び出し
+        let response;
+        try {
+            console.log('🚀 gpt-3.5-turbo で英単語4択問題生成を試行中...');
+            response = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-3.5-turbo 成功');
+        } catch (turboError) {
+            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
+            response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-4o-mini フォールバック成功');
+        }
 
         const result = response.choices[0].message.content;
 
@@ -896,6 +983,12 @@ app.post('/api/generate-english-quiz-batch', async (req, res) => {
     }
   ]
 }
+**重要事項:**
+- 回答は必ず有効なJSON形式で出力してください
+- 文字列内に改行が含まれる場合は\\nを使用してください
+- ダブルクォーテーションを含む場合は\\\"でエスケープしてください
+- JSON以外のテキストは出力しないでください
+- すべてのフィールドが必須です
         `;
 
         const messages = [{
@@ -903,13 +996,29 @@ app.post('/api/generate-english-quiz-batch', async (req, res) => {
             content: prompt,
         }];
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 16000,  // 複数問題のため大幅に増加
-            temperature: 0.7,
-            response_format: { type: "json_object" },
-            messages: messages,
-        });
+        // フォールバック機能付きのAI呼び出し
+        let response;
+        try {
+            console.log('🚀 gpt-3.5-turbo で英単語4択問題一括生成を試行中...');
+            response = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                max_tokens: 16000,  // 複数問題のため大幅に増加
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-3.5-turbo 成功');
+        } catch (turboError) {
+            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
+            response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                max_tokens: 16000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: messages,
+            });
+            console.log('✅ gpt-4o-mini フォールバック成功');
+        }
 
         const result = response.choices[0].message.content;
 
@@ -1166,15 +1275,38 @@ ${excludeWords.join(', ')}`;
   ],
   "difficulty_analysis": "この問題の難易度分析",
   "learning_point": "この単語の学習ポイント"
-}`;
+}
 
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            max_tokens: 2000,
-            temperature: 0.7,
-            response_format: { type: "json_object" },
-            messages: [{ role: 'user', content: prompt }],
-        });
+**重要事項:**
+- 回答は必ず有効なJSON形式で出力してください
+- 文字列内に改行が含まれる場合は\\nを使用してください
+- ダブルクォーテーションを含む場合は\\\"でエスケープしてください
+- JSON以外のテキストは出力しないでください
+- すべてのフィールドが必須です`;
+
+        // フォールバック機能付きのAI呼び出し
+        let response;
+        try {
+            console.log('🚀 gpt-3.5-turbo で英語4択問題統合生成を試行中...');
+            response = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: [{ role: 'user', content: prompt }],
+            });
+            console.log('✅ gpt-3.5-turbo 成功');
+        } catch (turboError) {
+            console.warn('⚠️ gpt-3.5-turbo 失敗 - gpt-4o-mini にフォールバック:', turboError.message);
+            response = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                max_tokens: 2000,
+                temperature: 0.5,
+                response_format: { type: "json_object" },
+                messages: [{ role: 'user', content: prompt }],
+            });
+            console.log('✅ gpt-4o-mini フォールバック成功');
+        }
 
         const aiResult = response.choices[0].message.content;
         const aiProblem = JSON.parse(aiResult);
