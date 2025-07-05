@@ -23,6 +23,7 @@ const EnglishWordStudy = ({
   const [selectedAnswer, setSelectedAnswer] = useState('')
   const [showResult, setShowResult] = useState(false)
   const [isCorrect, setIsCorrect] = useState(false)
+  const [shuffledOptions, setShuffledOptions] = useState([])
 
   /**
    * 英語4択問題取得（プールベース）
@@ -39,6 +40,7 @@ const EnglishWordStudy = ({
     setSelectedAnswer('')
     setShowResult(false)
     setIsCorrect(false)
+    setShuffledOptions([])
 
     try {
       const response = await fetch(`${apiUrl}/api/english-quiz/${encodeURIComponent(grade)}/${encodeURIComponent(level)}`)
@@ -53,6 +55,18 @@ const EnglishWordStudy = ({
       }
       
       setCurrentProblem(data.problem)
+      
+      // 選択肢をシャッフルして固定
+      const options = [
+        data.problem.correct_meaning,
+        ...(data.problem.wrong_options || [])
+      ]
+      // Fisher-Yatesアルゴリズムでシャッフル
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [options[i], options[j]] = [options[j], options[i]];
+      }
+      setShuffledOptions(options)
       
       // 進捗更新
       setEnglishProgress(prev => ({
@@ -203,12 +217,6 @@ const EnglishWordStudy = ({
     )
   }
 
-  // 選択肢をシャッフル
-  const options = [
-    currentProblem.correct_meaning,
-    ...(currentProblem.wrong_options || [])
-  ].sort(() => Math.random() - 0.5)
-
   return (
     <div className="space-y-6">
       {/* 問題表示 */}
@@ -223,7 +231,7 @@ const EnglishWordStudy = ({
 
         {/* 選択肢 */}
         <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto mb-6">
-          {options.map((option, index) => (
+          {shuffledOptions.map((option, index) => (
             <button
               key={index}
               onClick={() => setSelectedAnswer(option)}
