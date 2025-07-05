@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApiConnection } from '../../hooks/useApiConnection';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useAdaptiveLearning } from '../../hooks/useAdaptiveLearning';
+import AdaptiveLearningDashboard from './AdaptiveLearningDashboard';
 
 const EnglishStudy = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -8,12 +10,22 @@ const EnglishStudy = () => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [showAnswer, setShowAnswer] = useState(false);
     const [choices, setChoices] = useState([]);
+    const [startTime, setStartTime] = useState(null);
+    const [showDashboard, setShowDashboard] = useState(false);
     const [studyStats, setStudyStats] = useLocalStorage('englishStudyStats', {
         totalAnswered: 0,
         correctAnswers: 0,
         incorrectWords: [],
         studiedWords: []
     });
+    
+    // 適応学習システムの統合
+    const {
+        recordWordLearning,
+        getWordsForReview,
+        getLearningStats,
+        resetAdaptiveData
+    } = useAdaptiveLearning();
     const [settings, setSettings] = useLocalStorage('englishStudySettings', {
         grade: '中1',
         level: '基礎'
@@ -44,50 +56,76 @@ const EnglishStudy = () => {
     // 新しい問題を取得
     const fetchNewProblem = useCallback(async () => {
         try {
+            console.log('🎯 [DEBUG] 英語問題取得開始 - 現在時刻:', new Date().toLocaleString());
+            console.log('🔍 [DEBUG] 現在の設定:', { grade: settings.grade, level: settings.level });
+            console.log('🔍 [DEBUG] window.CARITAS_API_URL:', window.CARITAS_API_URL);
+            
             setIsLoading(true);
             const isConnected = await testConnection();
             
+            console.log('🌐 [DEBUG] API接続状態:', isConnected);
             if (!isConnected) {
                 throw new Error('サーバーとの接続が確立できません');
             }
 
-            // 既に学習済みの単語を除外
-            const excludeWords = studyStats.studiedWords.slice(-20); // 直近20単語を除外
-            const excludeParam = excludeWords.length > 0 ? `?exclude=${excludeWords.join(',')}` : '';
+            // 適応学習：復習対象単語の優先出題
+            const reviewWords = getWordsForReview(10);
+            const adaptiveStats = getLearningStats();
             
-            // まずプールから取得を試行
-            let response = await fetch(`/api/english-pool/${settings.grade}/${settings.level}${excludeParam}`);
+            console.log('🎯 [DEBUG] 復習対象単語:', reviewWords.map(w => w.word));
+            console.log('📊 [DEBUG] 適応学習統計:', adaptiveStats);
             
-            if (!response.ok) {
-                console.log('プールに問題がないため、AI生成を使用');
-                // プールに問題がない場合は、AI生成を使用
-                response = await fetch('/api/generate-english-quiz', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        grade: settings.grade,
-                        level: settings.level
-                    }),
-                });
+            // 復習対象がある場合は優先、ない場合は通常ロジック
+            let excludeParam = '';
+            if (reviewWords.length > 0) {
+                // 復習モード：特定の単語を優先出題
+                const priorityWords = reviewWords.slice(0, 5).map(w => w.word);
+                excludeParam = `?priority=${priorityWords.join(',')}`;
+            } else {
+                // 通常モード：直近学習単語を除外
+                const excludeWords = studyStats.studiedWords.slice(-20);
+                excludeParam = excludeWords.length > 0 ? `?exclude=${excludeWords.join(',')}` : '';
             }
+            
+            console.log('🔗 [DEBUG] 適応学習パラメータ:', excludeParam);
+            
+            // 【修正】統合4択問題取得エンドポイントを使用 - プール優先+AI生成フォールバック - URL エンコーディング対応
+            const encodedGrade = encodeURIComponent(settings.grade);
+            const encodedLevel = encodeURIComponent(settings.level);
+            const quizUrl = `/api/english-quiz/${encodedGrade}/${encodedLevel}${excludeParam}`;
+            console.log('🎯 [DEBUG] 統合4択問題取得URL:', quizUrl);
+            console.log('🔍 [DEBUG] エンコード詳細:', {
+                original: { grade: settings.grade, level: settings.level },
+                encoded: { grade: encodedGrade, level: encodedLevel }
+            });
+            
+            const response = await fetch(`${window.CARITAS_API_URL}${quizUrl}`);
+            console.log('📊 [DEBUG] 統合API応答ステータス:', response.status);
 
             if (!response.ok) {
                 throw new Error(`問題取得エラー: ${response.status}`);
             }
 
-            const data = await response.json();
+            const responseText = await response.text();
+            console.log('🔍 [DEBUG] サーバー応答内容:', responseText.substring(0, 500));
+            console.log('🔍 [DEBUG] Content-Type:', response.headers.get('content-type'));
+            
+            const data = JSON.parse(responseText);
             
             if (!data.success) {
                 throw new Error(data.error || '問題の取得に失敗しました');
             }
 
-            const problem = data.problem || JSON.parse(data.result);
+            console.log('📈 [DEBUG] 取得ソース:', data.source);
+            console.log('📋 [DEBUG] フォーマット:', data.format);
+            
+            // 統一された問題オブジェクトを直接使用
+            const problem = data.problem;
             setCurrentProblem(problem);
             setChoices(createChoices(problem));
             setSelectedAnswer(null);
             setShowAnswer(false);
+            setStartTime(new Date()); // 回答時間計測開始
             
         } catch (error) {
             console.error('問題取得エラー:', error);
@@ -108,8 +146,18 @@ const EnglishStudy = () => {
         if (selectedAnswer === null || showAnswer) return;
         
         const isCorrect = choices[selectedAnswer].isCorrect;
+        const endTime = new Date();
+        const responseTime = startTime ? (endTime - startTime) / 1000 : 0; // 秒単位
         
-        // 統計更新
+        // 適応学習システムに学習結果を記録
+        recordWordLearning(
+            currentProblem.word,
+            isCorrect,
+            responseTime,
+            settings.level
+        );
+        
+        // 従来の統計更新も維持（互換性のため）
         setStudyStats(prev => {
             const newStats = {
                 ...prev,
@@ -124,7 +172,8 @@ const EnglishStudy = () => {
                     word: currentProblem.word,
                     correct_meaning: currentProblem.correct_meaning,
                     selected_meaning: choices[selectedAnswer].text,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    responseTime: responseTime
                 };
                 
                 newStats.incorrectWords = [...prev.incorrectWords, incorrectWord];
@@ -143,6 +192,7 @@ const EnglishStudy = () => {
             return newStats;
         });
         
+        console.log(`📈 [DEBUG] 学習記録: ${currentProblem.word} - ${isCorrect ? '正解' : '不正解'} (${responseTime.toFixed(1)}秒)`);
         setShowAnswer(true);
     };
 
@@ -171,9 +221,12 @@ const EnglishStudy = () => {
         }
     }, [settings.grade, settings.level]);
 
-    const accuracyRate = studyStats.totalAnswered > 0 
-        ? Math.round((studyStats.correctAnswers / studyStats.totalAnswered) * 100) 
+    const accuracyRate = studyStats.totalAnswered > 0
+        ? Math.round((studyStats.correctAnswers / studyStats.totalAnswered) * 100)
         : 0;
+    
+    // 適応学習統計の取得
+    const adaptiveStats = getLearningStats();
 
     return (
         <div className="max-w-4xl mx-auto p-4 space-y-6">
@@ -210,20 +263,54 @@ const EnglishStudy = () => {
                     </div>
                 </div>
                 
-                {/* 統計情報 */}
-                <div className="grid grid-cols-3 gap-4 text-center bg-white/10 p-4 rounded-lg">
+                {/* 統計情報 - 適応学習対応 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center bg-white/10 p-4 rounded-lg">
                     <div>
                         <div className="text-2xl font-bold">{studyStats.totalAnswered}</div>
                         <div className="text-sm">回答数</div>
                     </div>
                     <div>
-                        <div className="text-2xl font-bold">{accuracyRate}%</div>
-                        <div className="text-sm">正答率</div>
+                        <div className="text-2xl font-bold">{Math.round(adaptiveStats.overallAccuracy * 100)}%</div>
+                        <div className="text-sm">総合正答率</div>
                     </div>
                     <div>
-                        <div className="text-2xl font-bold">{studyStats.incorrectWords.length}</div>
-                        <div className="text-sm">復習単語</div>
+                        <div className="text-2xl font-bold">{adaptiveStats.masteredWords}</div>
+                        <div className="text-sm">習得単語</div>
                     </div>
+                    <div>
+                        <div className="text-2xl font-bold">{adaptiveStats.needReviewWords}</div>
+                        <div className="text-sm">要復習</div>
+                    </div>
+                </div>
+                
+                {/* 適応学習インジケーター */}
+                <div className="bg-white/5 p-3 rounded-lg">
+                    <div className="flex items-center justify-between text-sm">
+                        <span>学習レベル:</span>
+                        <div className="flex items-center space-x-1">
+                            {[1, 2, 3, 4, 5].map(level => (
+                                <div
+                                    key={level}
+                                    className={`w-3 h-3 rounded-full ${
+                                        level <= adaptiveStats.currentDifficultyLevel
+                                            ? 'bg-yellow-400'
+                                            : 'bg-white/20'
+                                    }`}
+                                />
+                            ))}
+                            <span className="ml-2">Lv.{adaptiveStats.currentDifficultyLevel}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* 適応学習ダッシュボードボタン */}
+                <div className="text-center">
+                    <button
+                        onClick={() => setShowDashboard(true)}
+                        className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-sm font-medium transition-colors duration-200"
+                    >
+                        📊 学習状況を確認
+                    </button>
                 </div>
             </div>
 
@@ -377,6 +464,12 @@ const EnglishStudy = () => {
                     </div>
                 </div>
             )}
+            
+            {/* 適応学習ダッシュボード */}
+            <AdaptiveLearningDashboard
+                isOpen={showDashboard}
+                onClose={() => setShowDashboard(false)}
+            />
         </div>
     );
 };

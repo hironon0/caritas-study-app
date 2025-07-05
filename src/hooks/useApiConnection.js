@@ -29,13 +29,14 @@ export const useApiConnection = () => {
     const tryPorts = [3001, 3002, 3000]
     let lastError = null
 
+    console.log('🚀 [DEBUG] API接続確認開始 - 現在時刻:', new Date().toLocaleString())
     setApiStatus(prev => ({ ...prev, checking: true, error: null }))
 
     // 各ポートを順番に試行
     for (const port of tryPorts) {
       const testUrl = `http://localhost:${port}`
       try {
-        console.log(`🔍 API接続テスト: ${testUrl}/api/health`)
+        console.log(`🔍 [DEBUG] API接続テスト開始: ${testUrl}/api/health`)
         
         const response = await fetch(`${testUrl}/api/health`, {
           method: 'GET',
@@ -67,18 +68,22 @@ export const useApiConnection = () => {
           error: null
         })
 
-        console.log(`✅ API接続成功: ${testUrl}`)
+        console.log(`✅ [DEBUG] API接続成功: ${testUrl}`)
+        console.log(`📊 [DEBUG] API応答データ:`, data)
+        console.log(`🌐 [DEBUG] window.CARITAS_API_URL設定:`, window.CARITAS_API_URL)
         return true
 
       } catch (error) {
-        console.log(`❌ ポート${port}接続失敗:`, error.message)
+        console.log(`❌ [DEBUG] ポート${port}接続失敗:`, error.message)
+        console.log(`🔍 [DEBUG] エラー詳細:`, error)
         lastError = error
         continue // 次のポートを試行
       }
     }
 
     // すべてのポートで失敗
-    console.error('📡 すべてのポートで接続失敗:', lastError)
+    console.error('📡 [DEBUG] すべてのポートで接続失敗:', lastError)
+    console.log(`🔍 [DEBUG] 試行したポート:`, tryPorts)
 
     // ブラウザ判定とエラーメッセージ
     const userAgent = navigator.userAgent
@@ -146,6 +151,7 @@ export const useApiConnection = () => {
   return {
     apiStatus,
     checkApiConnection,
+    testConnection: checkApiConnection, // 【追加】エイリアス - 後方互換性確保
     retryConnection,
     getApiUrl,
     getBrowserInfo

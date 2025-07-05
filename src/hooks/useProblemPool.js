@@ -18,31 +18,43 @@ export const useProblemPool = () => {
    * 問題プール統計情報取得
    */
   const fetchProblemPoolStats = useCallback(async () => {
+    console.log('📊 [DEBUG] 問題プール統計情報取得開始 - 現在時刻:', new Date().toLocaleString())
+    
     const apiUrl = window.CARITAS_API_URL
+    console.log('🌐 [DEBUG] API URL状態:', apiUrl)
+    
     if (!apiUrl) {
-      console.warn('📊 API URLが設定されていません')
+      console.warn('📊 [DEBUG] API URLが設定されていません')
       return null
     }
     
     try {
-      const response = await fetch(`${apiUrl}/api/problem-pool/stats`, {
+      const statsUrl = `${apiUrl}/api/problem-pool/stats`
+      console.log('🔗 [DEBUG] 統計情報取得URL:', statsUrl)
+      
+      const response = await fetch(statsUrl, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         mode: 'cors',
         credentials: 'omit'
       })
       
+      console.log('📊 [DEBUG] 統計情報応答ステータス:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
         setProblemPoolStats(data.stats)
-        console.log('📊 問題プール統計情報取得成功:', data.stats)
+        console.log('📊 [DEBUG] 問題プール統計情報取得成功:', data.stats)
         return data.stats
       } else {
-        console.warn('📊 統計情報取得失敗: HTTPステータス', response.status)
+        console.warn('📊 [DEBUG] 統計情報取得失敗: HTTPステータス', response.status)
+        const errorText = await response.text()
+        console.warn('📊 [DEBUG] エラー応答:', errorText)
         return null
       }
     } catch (error) {
-      console.warn('📊 問題プール統計情報取得エラー:', error.message)
+      console.warn('📊 [DEBUG] 問題プール統計情報取得エラー:', error.message)
+      console.warn('📊 [DEBUG] エラー詳細:', error)
       return null
     }
   }, [])

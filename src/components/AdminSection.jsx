@@ -100,8 +100,12 @@ const AdminSection = ({
       const apiUrl = window.CARITAS_API_URL
       let response
       
-      if (problem.word) {
+      // 【修正】英語問題判定ロジックの改善
+      const isEnglishProblem = problem.word && problem.correct_meaning && problem.wrong_options
+      
+      if (isEnglishProblem) {
         // 英語問題の場合
+        console.log('📝 英語問題をプールに追加:', problem.word)
         response = await fetch(`${apiUrl}/api/english-pool/add`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -109,6 +113,7 @@ const AdminSection = ({
         })
       } else {
         // 数学問題の場合
+        console.log('📝 数学問題をプールに追加:', problem.id || '新規問題')
         response = await fetch(`${apiUrl}/api/problem-pool/add`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -152,12 +157,16 @@ const AdminSection = ({
       
       const apiUrl = window.CARITAS_API_URL
       
-      // 英語問題か数学問題かを判定
-      const isEnglishProblems = problems.length > 0 && problems[0].word
+      // 【修正】英語問題判定ロジックの改善 - より確実な判定条件
+      const isEnglishProblems = problems.length > 0 &&
+                                problems[0].word &&
+                                problems[0].correct_meaning &&
+                                problems[0].wrong_options
       const endpoint = isEnglishProblems ? '/api/english-pool/add-batch' : '/api/problem-pool/add-batch'
       const subject = isEnglishProblems ? '英語' : '数学'
       
       console.log(`📝 ${subject}問題として処理: ${endpoint}`)
+      console.log(`🔍 判定根拠: word=${!!problems[0]?.word}, correct_meaning=${!!problems[0]?.correct_meaning}, wrong_options=${!!problems[0]?.wrong_options}`)
       
       const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
@@ -253,8 +262,21 @@ const AdminSection = ({
     <div className="space-y-4 sm:space-y-6">
       {/* 管理画面ヘッダー */}
       <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white p-4 sm:p-6 rounded-lg">
-        <h2 className="text-xl sm:text-2xl font-bold mb-2">⚙️ 問題プール管理画面 v2.0</h2>
-        <p className="text-sm sm:text-base opacity-90">AI問題生成 → プール追加で問題データベースを構築（数学・英語対応）</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold mb-2">⚙️ 問題プール管理画面 v2.0</h2>
+            <p className="text-sm sm:text-base opacity-90">AI問題生成 → プール追加で問題データベースを構築（数学・英語対応）</p>
+          </div>
+          {/* 【追加】ナビゲーションボタン */}
+          <div className="flex gap-2">
+            <button
+              onClick={onNavigateToMenu}
+              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-white/50"
+            >
+              🏠 メインに戻る
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 統計情報 */}

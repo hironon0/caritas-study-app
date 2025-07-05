@@ -38,7 +38,7 @@ const MainMenu = ({
         <div className="text-center mb-6 sm:mb-8">
           <div className="text-4xl sm:text-6xl mb-3 sm:mb-4">🤖</div>
           <h1 className="text-xl sm:text-3xl font-bold text-gray-800 mb-2">
-            カリタス中学校 AI学習ツール
+            カリタス中学校 AI学習ツール [DEBUG: v2024.1.4-UPDATED]
           </h1>
           <h2 className="text-lg sm:text-xl font-semibold text-purple-700 mb-2">
             完全AI搭載版
@@ -110,23 +110,23 @@ const MainMenu = ({
             onClick={() => onNavigateToStudy('math')}
           />
 
-          {/* 英単語学習 */}
+          {/* 英語4択テスト */}
           <FeatureCard
-            title="AI英単語学習"
-            subtitle="Progress 21準拠 + 語源解説"
-            icon="📚"
-            borderColor="border-green-500"
-            bgColor="bg-green-100"
+            title="英語4択テスト"
+            subtitle="Progress 21準拠 + AI問題生成"
+            icon="🇬🇧"
+            borderColor="border-indigo-500"
+            bgColor="bg-indigo-100"
             features={[
-              '🧠 文脈で覚える例文自動生成',
-              '🗣️ 発音・語源まで徹底解説',
-              '📈 レベル別に効率よく学習',
-              '🔄 忘却曲線に基づいた復習'
+              '🤖 AI生成4択問題（思考力重視）',
+              '📚 プール機能（復習効率化）',
+              '🎯 正答率追跡（学習分析）',
+              '🔄 間違い単語管理（復習支援）'
             ]}
             stats={[
-              { label: '学習済み', value: `${englishProgress.words} 単語`, color: 'text-green-600' }
+              { label: '4択形式', value: 'テスト対策', color: 'text-indigo-600' }
             ]}
-            onClick={() => onNavigateToStudy('english_word')}
+            onClick={() => onNavigateToStudy('english_quiz')}
           />
 
           {/* 管理画面 */}
@@ -148,23 +148,23 @@ const MainMenu = ({
             onClick={onNavigateToAdmin}
           />
 
-          {/* 英語4択テスト */}
+          {/* 英単語学習 */}
           <FeatureCard
-            title="英語4択テスト"
-            subtitle="Progress 21準拠 + AI問題生成"
-            icon="🇬🇧"
-            borderColor="border-indigo-500"
-            bgColor="bg-indigo-100"
+            title="AI英単語学習"
+            subtitle="Progress 21準拠 + 語源解説"
+            icon="📚"
+            borderColor="border-green-500"
+            bgColor="bg-green-100"
             features={[
-              '🤖 AI生成4択問題（思考力重視）',
-              '📚 プール機能（復習効率化）',
-              '🎯 正答率追跡（学習分析）',
-              '🔄 間違い単語管理（復習支援）'
+              '🧠 文脈で覚える例文自動生成',
+              '🗣️ 発音・語源まで徹底解説',
+              '📈 レベル別に効率よく学習',
+              '🔄 忘却曲線に基づいた復習'
             ]}
             stats={[
-              { label: '4択形式', value: 'テスト対策', color: 'text-indigo-600' }
+              { label: '学習済み', value: `${englishProgress.words} 単語`, color: 'text-green-600' }
             ]}
-            onClick={() => onNavigateToStudy('english_quiz')}
+            onClick={() => onNavigateToStudy('english_word')}
           />
         </div>
 

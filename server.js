@@ -75,14 +75,57 @@ const getRandomMathProblem = (grade, unit, level) => {
     }
 };
 
-// ランダム問題選択（英語用）
-const getRandomEnglishProblem = (grade, level, excludeWords = []) => {
+// ランダム問題選択（英語用）- 適応学習対応版
+const getRandomEnglishProblem = (grade, level, excludeWords = [], priorityWords = []) => {
     const pool = loadProblemPool();
+    
+    console.log('🔍 [DEBUG] 英語問題プール詳細:', {
+        grade,
+        level,
+        excludeWords: excludeWords.length,
+        priorityWords: priorityWords.length,
+        poolKeys: Object.keys(pool.english || {}),
+        gradeExists: !!pool.english?.[grade],
+        levelExists: !!pool.english?.[grade]?.[level],
+        problemsLength: pool.english?.[grade]?.[level]?.length || 0
+    });
     
     try {
         const problems = pool.english?.[grade]?.[level];
+        
         if (!problems || !Array.isArray(problems) || problems.length === 0) {
+            console.log('🔍 [DEBUG] 英語問題が見つかりません:', {
+                grade,
+                level,
+                gradeType: typeof grade,
+                levelType: typeof level,
+                gradeDecoded: decodeURIComponent(grade),
+                levelDecoded: decodeURIComponent(level),
+                englishDataExists: !!pool.english,
+                gradeDataExists: !!pool.english?.[grade],
+                levelDataExists: !!pool.english?.[grade]?.[level],
+                gradeDecodedExists: !!pool.english?.[decodeURIComponent(grade)],
+                levelDecodedExists: !!pool.english?.[decodeURIComponent(grade)]?.[decodeURIComponent(level)],
+                availableGrades: pool.english ? Object.keys(pool.english) : [],
+                availableLevels: pool.english?.[grade] ? Object.keys(pool.english[grade]) : [],
+                availableLevelsDecoded: pool.english?.[decodeURIComponent(grade)] ? Object.keys(pool.english[decodeURIComponent(grade)]) : []
+            });
             return null;
+        }
+        
+        // 優先単語がある場合、その中から選択を試行
+        if (priorityWords.length > 0) {
+            const priorityProblems = problems.filter(problem =>
+                priorityWords.includes(problem.word)
+            );
+            
+            if (priorityProblems.length > 0) {
+                console.log(`🎯 優先単語から選択: ${priorityProblems.map(p => p.word).join(', ')}`);
+                const randomIndex = Math.floor(Math.random() * priorityProblems.length);
+                return priorityProblems[randomIndex];
+            }
+            
+            console.log('⚠️ 優先単語がプールに見つからないため、通常選択にフォールバック');
         }
         
         // 除外単語がある場合、それを除いた問題リストを作成
@@ -236,10 +279,33 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
+// URL エンコーディング設定（日本語対応）
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// 静的ファイル配信（index.htmlなど）
-app.use(express.static('./'));
+// 全リクエストログ（デバッグ用）
+app.use((req, res, next) => {
+    console.log('🌐 [DEBUG] リクエスト受信:', {
+        method: req.method,
+        path: req.path,
+        url: req.url,
+        originalUrl: req.originalUrl
+    });
+    
+    if (req.url.includes('/api/english-quiz/')) {
+        console.log('🎯 [DEBUG] 英語クイズAPIリクエスト詳細:', {
+            method: req.method,
+            path: req.path,
+            url: req.url,
+            params: req.params,
+            query: req.query,
+            originalUrl: req.originalUrl,
+            pathDecoded: decodeURIComponent(req.path),
+            urlDecoded: decodeURIComponent(req.url)
+        });
+    }
+    next();
+});
 
 // OpenAI API 初期化
 let openai = null;
@@ -938,16 +1004,21 @@ app.get('/api/problem-pool/:grade/:unit/:level', (req, res) => {
     }
 });
 
-// 英語問題プールから問題取得API
+// 英語問題プールから問題取得API - 適応学習対応版
 app.get('/api/english-pool/:grade/:level', (req, res) => {
     try {
         const { grade, level } = req.params;
-        const { exclude } = req.query; // 除外する単語リスト（カンマ区切り）
+        const { exclude, priority } = req.query; // 除外する単語リスト、優先単語リスト（カンマ区切り）
         
         console.log(`📚 英語問題プール取得リクエスト: ${grade}/${level}`);
         
         const excludeWords = exclude ? exclude.split(',') : [];
-        const problem = getRandomEnglishProblem(grade, level, excludeWords);
+        const priorityWords = priority ? priority.split(',') : [];
+        
+        console.log('🎯 [適応学習] 除外単語:', excludeWords);
+        console.log('🎯 [適応学習] 優先単語:', priorityWords);
+        
+        const problem = getRandomEnglishProblem(grade, level, excludeWords, priorityWords);
         
         if (!problem) {
             return res.status(404).json({
@@ -958,11 +1029,18 @@ app.get('/api/english-pool/:grade/:level', (req, res) => {
             });
         }
         
-        console.log(`✅ 英語問題プールから取得成功: ${problem.word}`);
+        const isPriorityWord = priorityWords.includes(problem.word);
+        console.log(`✅ 英語問題プールから取得成功: ${problem.word} ${isPriorityWord ? '(復習対象)' : ''}`);
+        
         res.json({
             success: true,
             problem: problem,
-            source: 'pool'
+            source: 'pool',
+            adaptive_info: {
+                is_priority_word: isPriorityWord,
+                priority_words_available: priorityWords.length,
+                exclude_words_count: excludeWords.length
+            }
         });
         
     } catch (error) {
@@ -970,6 +1048,170 @@ app.get('/api/english-pool/:grade/:level', (req, res) => {
         res.status(500).json({
             success: false,
             error: '英語問題プールの取得中にエラーが発生しました',
+            details: error.message
+        });
+    }
+});
+
+// 【NEW】英語4択問題統合取得API - プール優先 + AI生成フォールバック + 適応学習対応
+app.get('/api/english-quiz/:grade/:level', async (req, res) => {
+    try {
+        // URL エンコードされたパラメータをデコード
+        const grade = decodeURIComponent(req.params.grade);
+        const level = decodeURIComponent(req.params.level);
+        const { exclude, priority } = req.query;
+        
+        console.log('🎯 [DEBUG] 英語4択問題統合取得リクエスト詳細:', {
+            rawParams: req.params,
+            gradeRaw: req.params.grade,
+            levelRaw: req.params.level,
+            gradeDecoded: grade,
+            levelDecoded: level,
+            query: req.query,
+            url: req.url
+        });
+        
+        const excludeWords = exclude ? exclude.split(',') : [];
+        const priorityWords = priority ? priority.split(',') : [];
+        
+        console.log('🎯 [適応学習] 除外単語:', excludeWords);
+        console.log('🎯 [適応学習] 優先単語:', priorityWords);
+        
+        // ステップ1: プールから取得を試行（適応学習対応）
+        let poolProblem = null;
+        try {
+            poolProblem = getRandomEnglishProblem(grade, level, excludeWords, priorityWords);
+        } catch (error) {
+            console.log('📚 プール取得スキップ:', error.message);
+        }
+        
+        if (poolProblem) {
+            const isPriorityWord = priorityWords.includes(poolProblem.word);
+            console.log(`✅ プールから4択問題取得成功: ${poolProblem.word} ${isPriorityWord ? '(復習対象)' : ''}`);
+            return res.json({
+                success: true,
+                problem: poolProblem,
+                source: 'pool',
+                format: '4choice',
+                adaptive_info: {
+                    is_priority_word: isPriorityWord,
+                    priority_words_available: priorityWords.length,
+                    exclude_words_count: excludeWords.length
+                }
+            });
+        }
+        
+        // ステップ2: プールに問題がない場合、AI生成
+        if (!openai) {
+            return res.status(503).json({
+                success: false,
+                error: 'OpenAI API機能が利用できず、プールにも問題がありません'
+            });
+        }
+        
+        console.log('🤖 プールに問題なし - AI生成で4択問題作成（適応学習対応）');
+        
+        // 適応学習：優先単語がある場合、AI生成時にヒントとして使用
+        let priorityHint = '';
+        if (priorityWords.length > 0) {
+            priorityHint = `
+            
+【重要】以下の単語は学習者が復習を必要としている単語です。可能であればこれらの単語から選択してください:
+${priorityWords.join(', ')}`;
+        }
+        
+        let excludeHint = '';
+        if (excludeWords.length > 0) {
+            excludeHint = `
+            
+以下の単語は最近学習済みのため除外してください:
+${excludeWords.join(', ')}`;
+        }
+        
+        const prompt = `
+カリタス中学校のProgress 21に準拠した英単語4択問題を1問作成してください。
+
+設定:
+- 学年: ${grade}
+- 難易度レベル: ${level}
+
+以下の条件を満たしてください:
+1. ${grade}レベルに適した英単語
+2. Progress 21で学習する重要な語彙
+3. 紛らわしい選択肢で思考力を要する問題
+4. 中学生が理解できる詳細な解説${priorityHint}${excludeHint}
+
+回答は以下のJSON形式でお願いします:
+{
+  "word": "英単語（小文字）",
+  "pronunciation": "発音記号",
+  "grade": "${grade}",
+  "level": "${level}",
+  "correct_meaning": "正しい日本語の意味",
+  "wrong_options": [
+    "間違い選択肢1",
+    "間違い選択肢2",
+    "間違い選択肢3"
+  ],
+  "explanation": "この単語の詳細な解説",
+  "examples": [
+    {
+      "sentence": "英語例文1",
+      "translation": "日本語訳1"
+    },
+    {
+      "sentence": "英語例文2",
+      "translation": "日本語訳2"
+    }
+  ],
+  "difficulty_analysis": "この問題の難易度分析",
+  "learning_point": "この単語の学習ポイント"
+}`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            max_tokens: 2000,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+            messages: [{ role: 'user', content: prompt }],
+        });
+
+        const aiResult = response.choices[0].message.content;
+        const aiProblem = JSON.parse(aiResult);
+        
+        // 必要フィールドの検証
+        const requiredFields = ['word', 'correct_meaning', 'wrong_options'];
+        const missingFields = requiredFields.filter(field => !aiProblem[field]);
+        
+        if (missingFields.length > 0) {
+            throw new Error(`生成された問題で必要フィールドが不足: ${missingFields.join(', ')}`);
+        }
+        
+        if (!Array.isArray(aiProblem.wrong_options) || aiProblem.wrong_options.length !== 3) {
+            throw new Error('wrong_optionsは3個の配列である必要があります');
+        }
+
+        const isPriorityWord = priorityWords.includes(aiProblem.word);
+        console.log(`✅ AI生成4択問題成功: ${aiProblem.word} ${isPriorityWord ? '(復習対象単語を生成)' : ''}`);
+        
+        res.json({
+            success: true,
+            problem: aiProblem,
+            source: 'ai_generated',
+            format: '4choice',
+            adaptive_info: {
+                is_priority_word: isPriorityWord,
+                priority_words_requested: priorityWords.length,
+                exclude_words_count: excludeWords.length,
+                ai_followed_priority: isPriorityWord
+            }
+        });
+        
+    } catch (error) {
+        console.error('英語4択問題統合取得エラー:', error);
+        res.status(500).json({
+            success: false,
+            error: '英語4択問題の取得中にエラーが発生しました',
             details: error.message
         });
     }
@@ -1370,6 +1612,21 @@ app.get('/api/test-openai', async (req, res) => {
     }
 });
 
+// SPA用のキャッチオール（APIルート以外のみ）
+app.get('*', (req, res) => {
+  // APIルートの場合は404を返す
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({
+      success: false,
+      error: 'APIエンドポイントが見つかりません',
+      path: req.path
+    });
+  }
+  
+  // それ以外は静的ファイル（SPA）
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // エラーハンドリング
 app.use((error, req, res, next) => {
   console.error('サーバーエラー:', error);
@@ -1377,15 +1634,6 @@ app.use((error, req, res, next) => {
     success: false,
     error: 'サーバー内部エラー',
     timestamp: new Date().toISOString()
-  });
-});
-
-// 404ハンドリング
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'エンドポイントが見つかりません',
-    path: req.path
   });
 });
 

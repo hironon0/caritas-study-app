@@ -3737,18 +3737,1297 @@
     "高1": {}
   },
   "english": {
-    "中1": [],
-    "中2": [],
-    "中3": []
+    "中1": {
+      "基礎": [
+        {
+          "word": "apple",
+          "correct_meaning": "りんご",
+          "wrong_options": [
+            "みかん",
+            "ばなな",
+            "ぶどう"
+          ],
+          "pronunciation": "ˈæpl",
+          "explanation": "最も基本的な果物の単語です。",
+          "examples": [
+            {
+              "sentence": "I like apples.",
+              "translation": "私はりんごが好きです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "食べ物",
+          "grade": "中1"
+        },
+        {
+          "word": "book",
+          "correct_meaning": "本",
+          "wrong_options": [
+            "ペン",
+            "机",
+            "椅子"
+          ],
+          "pronunciation": "bʊk",
+          "explanation": "学校や読書で使う基本的な単語です。",
+          "examples": [
+            {
+              "sentence": "This is my book.",
+              "translation": "これは私の本です。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "学用品",
+          "grade": "中1"
+        },
+        {
+          "word": "cat",
+          "correct_meaning": "ねこ",
+          "wrong_options": [
+            "犬",
+            "鳥",
+            "魚"
+          ],
+          "pronunciation": "kæt",
+          "explanation": "ペットとして人気の動物です。",
+          "examples": [
+            {
+              "sentence": "I have a cat.",
+              "translation": "私はねこを飼っています。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "動物",
+          "grade": "中1"
+        },
+        {
+          "word": "dog",
+          "correct_meaning": "犬",
+          "wrong_options": [
+            "ねこ",
+            "鳥",
+            "うさぎ"
+          ],
+          "pronunciation": "dɔːɡ",
+          "explanation": "人間の最良の友と呼ばれる動物です。",
+          "examples": [
+            {
+              "sentence": "My dog is cute.",
+              "translation": "私の犬はかわいいです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "動物",
+          "grade": "中1"
+        },
+        {
+          "word": "red",
+          "correct_meaning": "赤い",
+          "wrong_options": [
+            "青い",
+            "黄色い",
+            "緑の"
+          ],
+          "pronunciation": "red",
+          "explanation": "基本的な色を表す形容詞です。",
+          "examples": [
+            {
+              "sentence": "This is a red pen.",
+              "translation": "これは赤いペンです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "色",
+          "grade": "中1"
+        },
+        {
+          "word": "blue",
+          "correct_meaning": "青い",
+          "wrong_options": [
+            "赤い",
+            "緑の",
+            "黄色い"
+          ],
+          "pronunciation": "bluː",
+          "explanation": "空や海の色を表す基本的な形容詞です。",
+          "examples": [
+            {
+              "sentence": "The sky is blue.",
+              "translation": "空は青いです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "色",
+          "grade": "中1"
+        },
+        {
+          "word": "big",
+          "correct_meaning": "大きい",
+          "wrong_options": [
+            "小さい",
+            "高い",
+            "長い"
+          ],
+          "pronunciation": "bɪɡ",
+          "explanation": "サイズを表す基本的な形容詞です。",
+          "examples": [
+            {
+              "sentence": "This is a big house.",
+              "translation": "これは大きな家です。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "形容詞",
+          "grade": "中1"
+        },
+        {
+          "word": "small",
+          "correct_meaning": "小さい",
+          "wrong_options": [
+            "大きい",
+            "短い",
+            "軽い"
+          ],
+          "pronunciation": "smɔːl",
+          "explanation": "bigの反対語で、サイズが小さいことを表します。",
+          "examples": [
+            {
+              "sentence": "I have a small car.",
+              "translation": "私は小さな車を持っています。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "形容詞",
+          "grade": "中1"
+        }
+      ],
+      "標準": [
+        {
+          "word": "beautiful",
+          "correct_meaning": "美しい",
+          "wrong_options": [
+            "醜い",
+            "面白い",
+            "退屈な"
+          ],
+          "pronunciation": "ˈbjuːtɪfl",
+          "explanation": "見た目や音などが美しいことを表す形容詞です。",
+          "examples": [
+            {
+              "sentence": "She is beautiful.",
+              "translation": "彼女は美しいです。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "形容詞",
+          "grade": "中1"
+        },
+        {
+          "word": "important",
+          "correct_meaning": "重要な",
+          "wrong_options": [
+            "簡単な",
+            "難しい",
+            "面白い"
+          ],
+          "pronunciation": "ɪmˈpɔːrtnt",
+          "explanation": "大切で意味があることを表す形容詞です。",
+          "examples": [
+            {
+              "sentence": "This is important information.",
+              "translation": "これは重要な情報です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "形容詞",
+          "grade": "中1"
+        },
+        {
+          "word": "difficult",
+          "correct_meaning": "難しい",
+          "wrong_options": [
+            "簡単な",
+            "面白い",
+            "退屈な"
+          ],
+          "pronunciation": "ˈdɪfɪkəlt",
+          "explanation": "理解や実行が困難なことを表します。",
+          "examples": [
+            {
+              "sentence": "Math is difficult for me.",
+              "translation": "数学は私には難しいです。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "形容詞",
+          "grade": "中1"
+        },
+        {
+          "word": "interesting",
+          "correct_meaning": "面白い",
+          "wrong_options": [
+            "退屈な",
+            "難しい",
+            "簡単な"
+          ],
+          "pronunciation": "ˈɪntrəstɪŋ",
+          "explanation": "関心を引く、興味深いことを表します。",
+          "examples": [
+            {
+              "sentence": "The movie was interesting.",
+              "translation": "その映画は面白かったです。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "形容詞",
+          "grade": "中1"
+        }
+      ],
+      "応用": [
+        {
+          "word": "environment",
+          "correct_meaning": "環境",
+          "wrong_options": [
+            "経済",
+            "政治",
+            "文化"
+          ],
+          "pronunciation": "ɪnˈvaɪrənmənt",
+          "explanation": "周囲の状況や自然環境を指します。",
+          "examples": [
+            {
+              "sentence": "We must protect the environment.",
+              "translation": "私たちは環境を守らなければなりません。"
+            }
+          ],
+          "difficulty": "応用",
+          "category": "社会",
+          "grade": "中1"
+        },
+        {
+          "word": "technology",
+          "correct_meaning": "技術",
+          "wrong_options": [
+            "科学",
+            "数学",
+            "芸術"
+          ],
+          "pronunciation": "tekˈnɑːlədʒi",
+          "explanation": "科学的知識を実用的に応用した技術です。",
+          "examples": [
+            {
+              "sentence": "Technology changes our lives.",
+              "translation": "技術は私たちの生活を変えます。"
+            }
+          ],
+          "difficulty": "応用",
+          "category": "科学",
+          "grade": "中1"
+        }
+      ],
+      "発展": [
+        {
+          "word": "sophisticated",
+          "correct_meaning": "洗練された",
+          "wrong_options": [
+            "単純な",
+            "古い",
+            "安い"
+          ],
+          "pronunciation": "səˈfɪstɪkeɪtɪd",
+          "explanation": "高度で複雑、または洗練されていることを表します。",
+          "examples": [
+            {
+              "sentence": "This is a sophisticated system.",
+              "translation": "これは洗練されたシステムです。"
+            }
+          ],
+          "difficulty": "発展",
+          "category": "形容詞",
+          "grade": "中1"
+        }
+      ]
+    },
+    "中2": {
+      "基礎": [
+        {
+          "word": "family",
+          "correct_meaning": "家族",
+          "wrong_options": [
+            "友達",
+            "先生",
+            "近所"
+          ],
+          "pronunciation": "ˈfæməli",
+          "explanation": "血縁関係にある人々の集まりです。",
+          "examples": [
+            {
+              "sentence": "I love my family.",
+              "translation": "私は家族を愛しています。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "人間関係",
+          "grade": "中2"
+        },
+        {
+          "word": "school",
+          "correct_meaning": "学校",
+          "wrong_options": [
+            "病院",
+            "公園",
+            "図書館"
+          ],
+          "pronunciation": "skuːl",
+          "explanation": "教育を受ける場所です。",
+          "examples": [
+            {
+              "sentence": "I go to school every day.",
+              "translation": "私は毎日学校に行きます。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "場所",
+          "grade": "中2"
+        },
+        {
+          "word": "friend",
+          "correct_meaning": "友達",
+          "wrong_options": [
+            "家族",
+            "先生",
+            "医者"
+          ],
+          "pronunciation": "frend",
+          "explanation": "親しい関係にある人です。",
+          "examples": [
+            {
+              "sentence": "She is my best friend.",
+              "translation": "彼女は私の親友です。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "人間関係",
+          "grade": "中2"
+        },
+        {
+          "word": "house",
+          "correct_meaning": "家",
+          "wrong_options": [
+            "学校",
+            "病院",
+            "店"
+          ],
+          "pronunciation": "haʊs",
+          "explanation": "人が住む建物です。",
+          "examples": [
+            {
+              "sentence": "This is my house.",
+              "translation": "これは私の家です。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "場所",
+          "grade": "中2"
+        },
+        {
+          "word": "time",
+          "correct_meaning": "時間",
+          "wrong_options": [
+            "場所",
+            "人",
+            "物"
+          ],
+          "pronunciation": "taɪm",
+          "explanation": "過去から未来への連続的な流れです。",
+          "examples": [
+            {
+              "sentence": "What time is it?",
+              "translation": "今何時ですか？"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "時間",
+          "grade": "中2"
+        },
+        {
+          "word": "water",
+          "correct_meaning": "水",
+          "wrong_options": [
+            "牛乳",
+            "ジュース",
+            "お茶"
+          ],
+          "pronunciation": "ˈwɔːtər",
+          "explanation": "生命に必要な透明な液体です。",
+          "examples": [
+            {
+              "sentence": "I drink water every day.",
+              "translation": "私は毎日水を飲みます。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "飲み物",
+          "grade": "中2"
+        },
+        {
+          "word": "food",
+          "correct_meaning": "食べ物",
+          "wrong_options": [
+            "飲み物",
+            "服",
+            "本"
+          ],
+          "pronunciation": "fuːd",
+          "explanation": "栄養を得るために食べるものです。",
+          "examples": [
+            {
+              "sentence": "Japanese food is delicious.",
+              "translation": "日本の食べ物は美味しいです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "食べ物",
+          "grade": "中2"
+        },
+        {
+          "word": "music",
+          "correct_meaning": "音楽",
+          "wrong_options": [
+            "絵画",
+            "小説",
+            "映画"
+          ],
+          "pronunciation": "ˈmjuːzɪk",
+          "explanation": "音を組み合わせて作る芸術です。",
+          "examples": [
+            {
+              "sentence": "I like listening to music.",
+              "translation": "私は音楽を聞くのが好きです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "芸術",
+          "grade": "中2"
+        },
+        {
+          "word": "apple",
+          "pronunciation": "/ˈæp.əl/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "リンゴ",
+          "wrong_options": [
+            "オレンジ",
+            "バナナ",
+            "グレープ"
+          ],
+          "explanation": "appleは日常的に使われる果物の名前で、特に健康に良い食べ物として知られています。語源は古英語の'æppel'です。",
+          "examples": [
+            {
+              "sentence": "I eat an apple every day.",
+              "translation": "私は毎日リンゴを食べます。"
+            },
+            {
+              "sentence": "She likes green apples.",
+              "translation": "彼女は青リンゴが好きです。"
+            }
+          ],
+          "difficulty_analysis": "この問題は基礎的な語彙であり、身近な物の名前なので理解しやすい。",
+          "learning_point": "果物の名前を覚えることで、食べ物に関連する語彙を広げられる。",
+          "id": "english_2_基礎_1751616476824_0",
+          "timestamp": "2025-07-04T08:07:56.824Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:08:28.000Z"
+        },
+        {
+          "word": "book",
+          "pronunciation": "/bʊk/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "本",
+          "wrong_options": [
+            "雑誌",
+            "新聞",
+            "ノート"
+          ],
+          "explanation": "bookは情報や物語が書かれた印刷物で、教育や娯楽に使われます。古英語の'bōc'が語源です。",
+          "examples": [
+            {
+              "sentence": "This book is very interesting.",
+              "translation": "この本はとても面白いです。"
+            },
+            {
+              "sentence": "I borrowed a book from the library.",
+              "translation": "私は図書館から本を借りました。"
+            }
+          ],
+          "difficulty_analysis": "一般的な物の名前であり、日常会話でも頻繁に使われるため、理解しやすい。",
+          "learning_point": "本に関連する表現を学ぶことで、読書や勉強の重要性を理解できる。",
+          "id": "english_2_基礎_1751616476824_1",
+          "timestamp": "2025-07-04T08:07:56.824Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:08:28.003Z"
+        },
+        {
+          "word": "teacher",
+          "pronunciation": "/ˈtiː.tʃər/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "教師",
+          "wrong_options": [
+            "生徒",
+            "校長",
+            "職員"
+          ],
+          "explanation": "teacherは教育を提供する人を指し、学生の成長に大きな役割を果たします。古フランス語の'techer'から派生しています。",
+          "examples": [
+            {
+              "sentence": "My teacher is very kind.",
+              "translation": "私の先生はとても優しいです。"
+            },
+            {
+              "sentence": "Teachers help students learn.",
+              "translation": "教師は生徒が学ぶ手助けをします。"
+            }
+          ],
+          "difficulty_analysis": "学校生活に関連する重要な職業の単語で、理解しやすい。",
+          "learning_point": "教育に関する単語を学ぶことで、教師とのコミュニケーションが円滑になる。",
+          "id": "english_2_基礎_1751616476824_4",
+          "timestamp": "2025-07-04T08:07:56.824Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:08:28.008Z"
+        },
+        {
+          "word": "happy",
+          "pronunciation": "/ˈhæpi/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "幸せ",
+          "wrong_options": [
+            "悲しい",
+            "怒っている",
+            "不安"
+          ],
+          "explanation": "happyは感情を表す形容詞で、ポジティブな気持ちを示します。語源は古英語の'hæppe'です。",
+          "examples": [
+            {
+              "sentence": "I feel happy today.",
+              "translation": "私は今日は幸せな気分です。"
+            },
+            {
+              "sentence": "She is always happy.",
+              "translation": "彼女はいつも幸せです。"
+            }
+          ],
+          "difficulty_analysis": "感情を表現する基本的な単語で、日常生活でもよく使われるため理解しやすい。",
+          "learning_point": "感情に関連する語彙を学ぶことで、自分の気持ちを表現するスキルを高められる。",
+          "id": "english_2_基礎_1751616476824_6",
+          "timestamp": "2025-07-04T08:07:56.824Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:08:28.012Z"
+        },
+        {
+          "word": "dog",
+          "pronunciation": "/dɔɡ/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "犬",
+          "wrong_options": [
+            "猫",
+            "鳥",
+            "魚"
+          ],
+          "explanation": "dogは一般的なペットとして知られ、人間の最良の友とされています。語源は古英語の'docga'です。",
+          "examples": [
+            {
+              "sentence": "My dog loves to play outside.",
+              "translation": "私の犬は外で遊ぶのが大好きです。"
+            },
+            {
+              "sentence": "Dogs are very loyal animals.",
+              "translation": "犬はとても忠実な動物です。"
+            }
+          ],
+          "difficulty_analysis": "ペットとして一般的な動物の名前で、日常生活でよく使われるため理解しやすい。",
+          "learning_point": "動物に関する語彙を学ぶことで、ペットについての話題を広げられる。",
+          "id": "english_2_基礎_1751616476824_7",
+          "timestamp": "2025-07-04T08:07:56.824Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:08:28.014Z"
+        },
+        {
+          "word": "city",
+          "pronunciation": "/ˈsɪti/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "都市",
+          "wrong_options": [
+            "村",
+            "町",
+            "国"
+          ],
+          "explanation": "cityは人が多く集まる場所を指し、経済や文化の中心となることが多いです。ラテン語の'civitas'が語源です。",
+          "examples": [
+            {
+              "sentence": "Tokyo is a big city.",
+              "translation": "東京は大きな都市です。"
+            },
+            {
+              "sentence": "I want to visit many cities around the world.",
+              "translation": "私は世界中の多くの都市を訪れたいです。"
+            }
+          ],
+          "difficulty_analysis": "地理的な用語であり、都市に関する基本的な知識を持っていれば理解しやすい。",
+          "learning_point": "都市に関連する語彙を学ぶことで、旅行や地理についての会話を楽しむことができる。",
+          "id": "english_2_基礎_1751616476824_9",
+          "timestamp": "2025-07-04T08:07:56.824Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:08:28.017Z"
+        },
+        {
+          "word": "library",
+          "pronunciation": "/ˈlaɪ.brər.i/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "図書館",
+          "wrong_options": [
+            "美術館",
+            "学校",
+            "公園"
+          ],
+          "explanation": "「library」は本や他の資料を借りることができる場所です。語源はラテン語の「liber」（本）から来ています。学校や地域にある公共の図書館は、学生にとって重要な学習資源です。",
+          "examples": [
+            {
+              "sentence": "I go to the library every week.",
+              "translation": "私は毎週図書館に行きます。"
+            },
+            {
+              "sentence": "The library has many books about history.",
+              "translation": "その図書館には歴史に関する多くの本があります。"
+            }
+          ],
+          "difficulty_analysis": "この単語は日常生活でよく使われるため、中学生でも理解しやすいです。",
+          "learning_point": "図書館の役割や利用方法を知ることが重要です。",
+          "id": "english_2_基礎_1751619492630_0",
+          "timestamp": "2025-07-04T08:58:12.630Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:58:18.755Z"
+        },
+        {
+          "word": "environment",
+          "pronunciation": "/ɪnˈvaɪ.rən.mənt/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "環境",
+          "wrong_options": [
+            "経済",
+            "技術",
+            "社会"
+          ],
+          "explanation": "「environment」は私たちの周りの自然や状況を指します。環境問題が注目される中、私たちの行動が環境に与える影響を考えることが大切です。",
+          "examples": [
+            {
+              "sentence": "We need to protect the environment.",
+              "translation": "私たちは環境を守る必要があります。"
+            },
+            {
+              "sentence": "The environment is changing rapidly.",
+              "translation": "環境は急速に変化しています。"
+            }
+          ],
+          "difficulty_analysis": "環境に関する問題は重要ですが、語彙自体は基礎的です。",
+          "learning_point": "環境の保護について考えることが必要です。",
+          "id": "english_2_基礎_1751619492630_1",
+          "timestamp": "2025-07-04T08:58:12.630Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:58:18.763Z"
+        },
+        {
+          "word": "adventure",
+          "pronunciation": "/ədˈvɛn.tʃər/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "冒険",
+          "wrong_options": [
+            "旅行",
+            "遊び",
+            "仕事"
+          ],
+          "explanation": "「adventure」は危険や新しい体験を伴う出来事を指します。冒険はしばしば楽しいものですが、注意も必要です。",
+          "examples": [
+            {
+              "sentence": "We went on an adventure in the mountains.",
+              "translation": "私たちは山で冒険をしました。"
+            },
+            {
+              "sentence": "Reading books can be an adventure too.",
+              "translation": "本を読むことも冒険になることがあります。"
+            }
+          ],
+          "difficulty_analysis": "この単語はストーリーや旅行に関連して使われるため、興味を引きやすいです。",
+          "learning_point": "冒険の楽しさとリスクについて理解を深めることが大切です。",
+          "id": "english_2_基礎_1751619492630_2",
+          "timestamp": "2025-07-04T08:58:12.630Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:58:18.767Z"
+        },
+        {
+          "word": "celebrate",
+          "pronunciation": "/ˈsɛl.ɪ.breɪt/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "祝う",
+          "wrong_options": [
+            "準備する",
+            "計画する",
+            "忘れる"
+          ],
+          "explanation": "「celebrate」は特別な出来事や成功を祝う行為を指します。誕生日や祝日などを祝う際によく使われます。",
+          "examples": [
+            {
+              "sentence": "We celebrate New Year's Day with fireworks.",
+              "translation": "私たちは花火で元日を祝います。"
+            },
+            {
+              "sentence": "It's important to celebrate our achievements.",
+              "translation": "私たちの成果を祝うことは重要です。"
+            }
+          ],
+          "difficulty_analysis": "日常的に行われる行為であり、理解しやすい語彙です。",
+          "learning_point": "祝い方や文化的背景を学ぶことが重要です。",
+          "id": "english_2_基礎_1751619492630_3",
+          "timestamp": "2025-07-04T08:58:12.630Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:58:18.771Z"
+        },
+        {
+          "word": "discuss",
+          "pronunciation": "/dɪsˈkʌs/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "議論する",
+          "wrong_options": [
+            "決定する",
+            "調査する",
+            "無視する"
+          ],
+          "explanation": "「discuss」は意見を交換することを意味します。特に、何か問題を解決するために話し合うときによく使われます。",
+          "examples": [
+            {
+              "sentence": "Let's discuss our project in class.",
+              "translation": "クラスで私たちのプロジェクトについて議論しましょう。"
+            },
+            {
+              "sentence": "They discussed the new rules at the meeting.",
+              "translation": "彼らは会議で新しいルールについて議論しました。"
+            }
+          ],
+          "difficulty_analysis": "日常生活において重要なコミュニケーションの一部であり、理解しやすいです。",
+          "learning_point": "効果的な議論の方法や意見の交換の重要性を学ぶことが大切です。",
+          "id": "english_2_基礎_1751619492630_4",
+          "timestamp": "2025-07-04T08:58:12.630Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T08:58:18.775Z"
+        },
+        {
+          "word": "animal",
+          "pronunciation": "/ˈæn.ɪ.məl/",
+          "grade": "中2",
+          "level": "基礎",
+          "correct_meaning": "動物",
+          "wrong_options": [
+            "植物",
+            "人間",
+            "昆虫"
+          ],
+          "explanation": "「animal」は、動物を指す一般的な名詞です。動物は、さまざまな種類があり、陸上や水中、空中で生活しています。この単語は、通常、ペットや野生動物を指すときに使われます。",
+          "examples": [
+            {
+              "sentence": "The cat is a small animal.",
+              "translation": "猫は小さな動物です。"
+            },
+            {
+              "sentence": "Lions are wild animals.",
+              "translation": "ライオンは野生の動物です。"
+            }
+          ],
+          "difficulty_analysis": "この問題は、中学生にとって基本的な語彙であり、動物に関する知識があるため、比較的簡単です。",
+          "learning_point": "動物の種類について学ぶことで、さらに関連する語彙を増やすことができます。",
+          "id": "english_2_基礎_1751635577253_0",
+          "timestamp": "2025-07-04T13:26:17.253Z",
+          "source": "ai_generated",
+          "created_at": "2025-07-04T13:26:29.932Z"
+        }
+      ],
+      "標準": [
+        {
+          "word": "experience",
+          "correct_meaning": "経験",
+          "wrong_options": [
+            "知識",
+            "技術",
+            "才能"
+          ],
+          "pronunciation": "ɪkˈspɪriəns",
+          "explanation": "実際に行ったり感じたりしたことです。",
+          "examples": [
+            {
+              "sentence": "This was a great experience.",
+              "translation": "これは素晴らしい経験でした。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中2"
+        },
+        {
+          "word": "knowledge",
+          "correct_meaning": "知識",
+          "wrong_options": [
+            "経験",
+            "技術",
+            "感情"
+          ],
+          "pronunciation": "ˈnɑːlɪdʒ",
+          "explanation": "学習や経験によって得られた情報や理解です。",
+          "examples": [
+            {
+              "sentence": "Knowledge is power.",
+              "translation": "知識は力です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中2"
+        },
+        {
+          "word": "success",
+          "correct_meaning": "成功",
+          "wrong_options": [
+            "失敗",
+            "努力",
+            "計画"
+          ],
+          "pronunciation": "səkˈses",
+          "explanation": "目標を達成することです。",
+          "examples": [
+            {
+              "sentence": "Hard work leads to success.",
+              "translation": "努力は成功につながります。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中2"
+        },
+        {
+          "word": "communication",
+          "correct_meaning": "コミュニケーション",
+          "wrong_options": [
+            "教育",
+            "娯楽",
+            "運動"
+          ],
+          "pronunciation": "kəˌmjuːnɪˈkeɪʃn",
+          "explanation": "情報や感情を伝え合うことです。",
+          "examples": [
+            {
+              "sentence": "Good communication is important.",
+              "translation": "良いコミュニケーションは重要です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中2"
+        }
+      ],
+      "応用": [
+        {
+          "word": "responsibility",
+          "correct_meaning": "責任",
+          "wrong_options": [
+            "権利",
+            "自由",
+            "義務"
+          ],
+          "pronunciation": "rɪˌspɑːnsəˈbɪləti",
+          "explanation": "自分の行動や決定に対して答える義務です。",
+          "examples": [
+            {
+              "sentence": "We have a responsibility to protect nature.",
+              "translation": "私たちには自然を守る責任があります。"
+            }
+          ],
+          "difficulty": "応用",
+          "category": "抽象概念",
+          "grade": "中2"
+        },
+        {
+          "word": "democracy",
+          "correct_meaning": "民主主義",
+          "wrong_options": [
+            "独裁制",
+            "共産主義",
+            "資本主義"
+          ],
+          "pronunciation": "dɪˈmɑːkrəsi",
+          "explanation": "国民が政治に参加する政治制度です。",
+          "examples": [
+            {
+              "sentence": "Democracy values people's opinions.",
+              "translation": "民主主義は人々の意見を大切にします。"
+            }
+          ],
+          "difficulty": "応用",
+          "category": "政治",
+          "grade": "中2"
+        }
+      ],
+      "発展": [
+        {
+          "word": "philosophical",
+          "correct_meaning": "哲学的な",
+          "wrong_options": [
+            "科学的な",
+            "数学的な",
+            "芸術的な"
+          ],
+          "pronunciation": "ˌfɪləˈsɑːfɪkl",
+          "explanation": "深く考える、哲学に関連することを表します。",
+          "examples": [
+            {
+              "sentence": "He asked a philosophical question.",
+              "translation": "彼は哲学的な質問をしました。"
+            }
+          ],
+          "difficulty": "発展",
+          "category": "抽象概念",
+          "grade": "中2"
+        }
+      ]
+    },
+    "中3": {
+      "基礎": [
+        {
+          "word": "society",
+          "correct_meaning": "社会",
+          "wrong_options": [
+            "個人",
+            "家族",
+            "学校"
+          ],
+          "pronunciation": "səˈsaɪəti",
+          "explanation": "人々が共に生活している集団や組織です。",
+          "examples": [
+            {
+              "sentence": "We live in a modern society.",
+              "translation": "私たちは現代社会に住んでいます。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "社会",
+          "grade": "中3"
+        },
+        {
+          "word": "culture",
+          "correct_meaning": "文化",
+          "wrong_options": [
+            "自然",
+            "技術",
+            "経済"
+          ],
+          "pronunciation": "ˈkʌltʃər",
+          "explanation": "特定の集団が共有する生活様式や価値観です。",
+          "examples": [
+            {
+              "sentence": "Japanese culture is unique.",
+              "translation": "日本の文化はユニークです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "社会",
+          "grade": "中3"
+        },
+        {
+          "word": "health",
+          "correct_meaning": "健康",
+          "wrong_options": [
+            "病気",
+            "薬",
+            "治療"
+          ],
+          "pronunciation": "helθ",
+          "explanation": "身体と心の良好な状態です。",
+          "examples": [
+            {
+              "sentence": "Exercise is good for your health.",
+              "translation": "運動は健康に良いです。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "健康",
+          "grade": "中3"
+        },
+        {
+          "word": "education",
+          "correct_meaning": "教育",
+          "wrong_options": [
+            "娯楽",
+            "仕事",
+            "趣味"
+          ],
+          "pronunciation": "ˌedʒuˈkeɪʃn",
+          "explanation": "知識や技能を教え学ぶ活動です。",
+          "examples": [
+            {
+              "sentence": "Education is important for everyone.",
+              "translation": "教育は誰にとっても重要です。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "教育",
+          "grade": "中3"
+        },
+        {
+          "word": "future",
+          "correct_meaning": "未来",
+          "wrong_options": [
+            "過去",
+            "現在",
+            "歴史"
+          ],
+          "pronunciation": "ˈfjuːtʃər",
+          "explanation": "これから起こる時間や出来事です。",
+          "examples": [
+            {
+              "sentence": "I'm excited about the future.",
+              "translation": "私は未来にワクワクしています。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "時間",
+          "grade": "中3"
+        },
+        {
+          "word": "problem",
+          "correct_meaning": "問題",
+          "wrong_options": [
+            "解決",
+            "答え",
+            "方法"
+          ],
+          "pronunciation": "ˈprɑːbləm",
+          "explanation": "解決が必要な困った状況です。",
+          "examples": [
+            {
+              "sentence": "We need to solve this problem.",
+              "translation": "この問題を解決する必要があります。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "抽象概念",
+          "grade": "中3"
+        },
+        {
+          "word": "solution",
+          "correct_meaning": "解決策",
+          "wrong_options": [
+            "問題",
+            "質問",
+            "疑問"
+          ],
+          "pronunciation": "səˈluːʃn",
+          "explanation": "問題を解決する方法や答えです。",
+          "examples": [
+            {
+              "sentence": "We found a good solution.",
+              "translation": "私たちは良い解決策を見つけました。"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "抽象概念",
+          "grade": "中3"
+        },
+        {
+          "word": "opinion",
+          "correct_meaning": "意見",
+          "wrong_options": [
+            "事実",
+            "証拠",
+            "データ"
+          ],
+          "pronunciation": "əˈpɪnjən",
+          "explanation": "個人的な考えや判断です。",
+          "examples": [
+            {
+              "sentence": "What's your opinion about this?",
+              "translation": "これについてどう思いますか？"
+            }
+          ],
+          "difficulty": "基礎",
+          "category": "抽象概念",
+          "grade": "中3"
+        }
+      ],
+      "標準": [
+        {
+          "word": "independence",
+          "correct_meaning": "独立",
+          "wrong_options": [
+            "依存",
+            "協力",
+            "支援"
+          ],
+          "pronunciation": "ˌɪndɪˈpendəns",
+          "explanation": "他に頼らず自分で行動することです。",
+          "examples": [
+            {
+              "sentence": "Young people need independence.",
+              "translation": "若者には独立が必要です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中3"
+        },
+        {
+          "word": "opportunity",
+          "correct_meaning": "機会",
+          "wrong_options": [
+            "困難",
+            "障害",
+            "問題"
+          ],
+          "pronunciation": "ˌɑːpərˈtuːnəti",
+          "explanation": "何かを行う良いタイミングや条件です。",
+          "examples": [
+            {
+              "sentence": "This is a great opportunity.",
+              "translation": "これは素晴らしい機会です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中3"
+        },
+        {
+          "word": "challenge",
+          "correct_meaning": "挑戦",
+          "wrong_options": [
+            "安全",
+            "簡単",
+            "退屈"
+          ],
+          "pronunciation": "ˈtʃælɪndʒ",
+          "explanation": "困難だが取り組む価値のある課題です。",
+          "examples": [
+            {
+              "sentence": "Learning English is a challenge.",
+              "translation": "英語を学ぶことは挑戦です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中3"
+        },
+        {
+          "word": "creativity",
+          "correct_meaning": "創造性",
+          "wrong_options": [
+            "模倣",
+            "繰り返し",
+            "暗記"
+          ],
+          "pronunciation": "ˌkriːeɪˈtɪvəti",
+          "explanation": "新しいアイデアや作品を生み出す能力です。",
+          "examples": [
+            {
+              "sentence": "Art requires creativity.",
+              "translation": "芸術には創造性が必要です。"
+            }
+          ],
+          "difficulty": "標準",
+          "category": "抽象概念",
+          "grade": "中3"
+        }
+      ],
+      "応用": [
+        {
+          "word": "sustainability",
+          "correct_meaning": "持続可能性",
+          "wrong_options": [
+            "一時性",
+            "破壊性",
+            "不安定性"
+          ],
+          "pronunciation": "səˌsteɪnəˈbɪləti",
+          "explanation": "長期間にわたって維持できることです。",
+          "examples": [
+            {
+              "sentence": "Environmental sustainability is crucial.",
+              "translation": "環境の持続可能性は重要です。"
+            }
+          ],
+          "difficulty": "応用",
+          "category": "環境",
+          "grade": "中3"
+        },
+        {
+          "word": "globalization",
+          "correct_meaning": "グローバル化",
+          "wrong_options": [
+            "地域化",
+            "分離",
+            "孤立"
+          ],
+          "pronunciation": "ˌɡloʊbələˈzeɪʃn",
+          "explanation": "世界的な統合や相互依存が進むことです。",
+          "examples": [
+            {
+              "sentence": "Globalization affects all countries.",
+              "translation": "グローバル化はすべての国に影響します。"
+            }
+          ],
+          "difficulty": "応用",
+          "category": "社会",
+          "grade": "中3"
+        }
+      ],
+      "発展": [
+        {
+          "word": "phenomenal",
+          "correct_meaning": "驚異的な",
+          "wrong_options": [
+            "平凡な",
+            "普通の",
+            "期待通りの"
+          ],
+          "pronunciation": "fəˈnɑːmɪnl",
+          "explanation": "非常に印象的で素晴らしいことを表します。",
+          "examples": [
+            {
+              "sentence": "Her performance was phenomenal.",
+              "translation": "彼女の演技は驚異的でした。"
+            }
+          ],
+          "difficulty": "発展",
+          "category": "形容詞",
+          "grade": "中3"
+        }
+      ]
+    }
   },
   "stats": {
-    "total_problems": 61,
-    "last_updated": "2025-07-03T08:04:56.202Z",
+    "total_problems": 118,
+    "last_updated": "2025-07-04T13:26:29.932Z",
     "problems_by_grade": {
-      "中1": 1,
-      "中2": 60,
-      "中3": 0,
+      "中1": 17,
+      "中2": 87,
+      "中3": 14,
       "高1": 0
+    },
+    "problems_by_subject": {
+      "math": 61,
+      "english": 45
     }
   }
 }
